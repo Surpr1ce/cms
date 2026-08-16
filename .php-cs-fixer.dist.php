@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-$finder = (new PhpCsFixer\Finder())
-    ->in([__DIR__ . '/src', __DIR__ . '/tests'])
-    ->append([__FILE__, __DIR__ . '/public/index.php'])
+$finder = new PhpCsFixer\Finder()
+    ->in([__DIR__.'/src', __DIR__.'/tests'])
+    ->append([__FILE__, __DIR__.'/public/index.php'])
 ;
 
-return (new PhpCsFixer\Config())
+return new PhpCsFixer\Config()
     ->setRiskyAllowed(true)
     ->setRules([
         '@Symfony' => true,
