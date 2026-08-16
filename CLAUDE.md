@@ -27,11 +27,23 @@ src/
   Entity/          Doctrine entities — domain state and invariants
   Repository/      Query objects; no business rules
   Service/         Application services (slugging, publishing, uploads)
+  Exception/       Domain exceptions — one class per refused rule
+  Factory/         Foundry factories — one per entity, used by fixtures and tests
   Controller/      HTTP boundary — thin, delegates to services
     Admin/         Hand-written admin screens
   Security/        Voters, authenticators
   Twig/            Extensions and components
 ```
+
+`Exception/` holds one class per rule that can be refused, all extending
+`App\Exception\DomainException`. Distinct classes let a test assert on the rule
+that was broken rather than on a message string, and let controllers map each to
+a different response without parsing text.
+
+`Factory/` is test-support code that lives in `src/` rather than `tests/` because
+`src/DataFixtures/` and `src/Story/` load development data through the same
+factories. Keeping one definition of what a valid entity looks like is worth the
+cost of analysing test-support code at PHPStan level max.
 
 **The domain must not know about HTTP or Twig.** Controllers translate requests
 into service calls and hand results to templates. This is what makes the same

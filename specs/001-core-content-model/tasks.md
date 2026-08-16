@@ -49,13 +49,23 @@ claiming one.
 documentation already promises, directories that `CLAUDE.md` does not yet list,
 and the two decision records the constitution requires.
 
-- [ ] T001 Add `unit`, `integration` and `functional` test suites to `phpunit.dist.xml`, keeping a default suite that runs all three (see `research.md` decision 14 — `docs/testing.md` documents `--testsuite unit`, which fails today)
-- [ ] T002 [P] Add `src/Exception/` and `src/Factory/` to the architecture tree in `CLAUDE.md`, each with a one-line description of what belongs there
-- [ ] T003 [P] Create the test database: `php bin/console --env=test doctrine:database:create --if-not-exists`
-- [ ] T004 [P] Write `docs/adr/0005-share-the-publication-lifecycle-through-a-mapped-superclass.md` from `research.md` decision 1, including the trait, STI, JTI and embeddable alternatives and why each was rejected
-- [ ] T005 [P] Write `docs/adr/0006-generate-slugs-in-a-service-and-freeze-them-at-publication.md` from `research.md` decision 5, including the honest limitation on FR-012 regeneration
+- [x] T001 Add `unit`, `integration` and `functional` test suites to `phpunit.dist.xml`, keeping a default suite that runs all three (see `research.md` decision 14 — `docs/testing.md` documents `--testsuite unit`, which fails today)
+- [x] T002 [P] Add `src/Exception/` and `src/Factory/` to the architecture tree in `CLAUDE.md`, each with a one-line description of what belongs there
+- [x] T003 [P] Create the test database: `php bin/console --env=test doctrine:database:create --if-not-exists`
+- [x] T004 [P] Write `docs/adr/0005-share-the-publication-lifecycle-through-a-mapped-superclass.md` from `research.md` decision 1, including the trait, STI, JTI and embeddable alternatives and why each was rejected
+- [x] T005 [P] Write `docs/adr/0006-generate-slugs-in-a-service-and-freeze-them-at-publication.md` from `research.md` decision 5, including the honest limitation on FR-012 regeneration
 
-**Checkpoint**: `vendor/bin/phpunit --testsuite unit` runs (and passes trivially, with no tests yet)
+**Unplanned work found while doing T003**: the test environment could not connect
+at all. Symfony deliberately does not load `.env.local` when `APP_ENV=test`, so
+the development credentials were invisible and the suite fell back to the
+placeholder in `.env`. Fixed by adding `.env.test.local` (gitignored, as local
+credentials should be) with a comment explaining why the file has to exist. CI is
+unaffected — the workflow sets `DATABASE_URL` against its service container. This
+was latent from the moment the project was created and would have blocked the
+first test regardless of this feature.
+
+**Checkpoint**: reached. `vendor/bin/phpunit --testsuite unit` runs and reports
+"No tests executed!", which is the correct answer before any test exists.
 
 ---
 
