@@ -18,3 +18,23 @@
 /public/assets/
 /assets/vendor/
 ###< symfony/asset-mapper ###
+
+###> phpstan/phpstan ###
+phpstan.neon
+###< phpstan/phpstan ###
+
+###> friendsofphp/php-cs-fixer ###
+/.php-cs-fixer.php
+/.php-cs-fixer.cache
+###< friendsofphp/php-cs-fixer ###
+
+###> agent tooling ###
+# Conventions, agents, and Spec Kit skills are part of the deliverable and stay
+# tracked. Only machine-local state and credentials are excluded.
+/.claude/settings.local.json
+/.claude/.credentials.json
+###< agent tooling ###
+
+###> uploaded media ###
+/public/uploads/
+###< uploaded media ###
