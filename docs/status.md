@@ -21,13 +21,14 @@ as such at the top of the file.
 | GitHub Actions CI | Written, not yet run |
 | Spec Kit + project subagents | Installed |
 | Conventions (`CLAUDE.md`) and ADRs 1–4 | Written |
+| PostgreSQL 16 on the development machine | Installed and running, connection verified |
+| Feature 001 (`specs/001-core-content-model/`) | Specified, planned, tasks generated (79 tasks across 9 phases); no code written yet |
 
 ## Not done
 
 | Area | State |
 | --- | --- |
-| PostgreSQL on the development machine | Installation in progress |
-| Entities, repositories, migrations | Not started |
+| Entities, repositories, migrations | Specified, not started |
 | Fixtures and factories | Not started |
 | Security configuration, voters, login | Not started |
 | Admin screens (EasyAdmin and hand-written) | Not started |
