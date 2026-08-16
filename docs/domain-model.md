@@ -3,6 +3,11 @@
 > This document describes the intended model. It is written during the *Discuss*
 > phase and updated as entities are implemented; see
 > [`status.md`](status.md) for what currently exists in code.
+>
+> **As of feature 001 the whole model below is implemented.** Where the code
+> reads differently from this document, the differences are listed under
+> [Implementation notes](#implementation-notes) rather than left to be
+> discovered.
 
 ## Entities
 
@@ -147,3 +152,32 @@ covered by a test:
 4. An article cannot be published without a title and content.
 5. Deleting a category does not delete its articles — they become uncategorised.
 6. Deleting a user is refused while they still own content.
+
+## Implementation notes
+
+Five places where the code reads differently from the description above. Each is
+a decision, not a drift.
+
+**`User` is stored in a table called `app_user`.** `user` is reserved in
+PostgreSQL, and a table name that has to be quoted in every hand-written query is
+a papercut with no upside.
+
+**`Article` and `Page` share an abstract `PublishableContent`.** The title, slug,
+excerpt, body, status, publication date, timestamps and lead image are declared
+once as a Doctrine mapped superclass, so the two cannot drift apart. Each still
+gets its own table with no discriminator and no join. See
+[ADR 5](adr/0005-share-the-publication-lifecycle-through-a-mapped-superclass.md).
+
+**The address is a constructor argument.** Content cannot be created without one.
+Obtain it from `UniqueSlugGenerator`, which is what makes it unique within its
+kind. The shape of an address lives in `App\Entity\Slug` — one rule, one place,
+used by all four entities that carry one.
+
+**Deleting a page is refused while it has children**, where deleting a category
+re-parents them. Page nesting is also the menu structure, and silently
+rearranging a visitor's navigation is worse than declining.
+
+**Every deletion rule is enforced twice** — in a service and, where it can be
+expressed as one, in a foreign-key constraint. The service produces an error a
+person can act on; the constraint is what survives a future caller who never
+heard of the service.

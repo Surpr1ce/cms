@@ -199,6 +199,32 @@ section — `src/Exception/` and `src/Factory/`. Rather than leave that as drift
 the tasks include updating `CLAUDE.md`. The reasoning for each is in
 `research.md`, decisions 10 and 11.
 
+## As built
+
+Phases 1–8 of `tasks.md` are complete and `composer qa` passes: **279 tests, 586
+assertions**, PHPStan at level max with no baseline, no ignore comment and no
+skipped test. Phase 9 is complete except for the `symfony-reviewer` pass, which
+this session cannot run and which is reported as still open.
+
+Five things the implementation settled that this plan had left open, each
+recorded where it belongs and repeated here so a reader of the plan alone is not
+misled:
+
+1. **The address is a constructor argument.** Content cannot be created without
+   one. Building with an empty slug and filling it in before flush makes two
+   drafts collide on the empty string the first time anyone forgets.
+2. **`featuredImage` lives on `PublishableContent`,** not separately on `Article`
+   and `Page`. Each has exactly one and the rule guarding it is the same rule.
+3. **`DomainException` extends `\RuntimeException`,** not PHP's `\DomainException`.
+   These refusals depend on runtime state, not on a programming mistake.
+4. **There is no `eraseCredentials()`.** Symfony 8 removed it from `UserInterface`.
+5. **Five migrations, not one** — see Technical Context above.
+
+Two counts in Scale/Scope came out higher than estimated: nine domain exceptions
+rather than seven, and 279 tests rather than the ~55 predicted. The extra tests
+are mostly data providers covering every case rather than one example, which is
+what FR-032 asks for.
+
 ## Complexity Tracking
 
 > Filled only where the design is more elaborate than the obvious alternative and

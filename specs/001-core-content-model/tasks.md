@@ -333,14 +333,38 @@ user stories are independently functional and proven.
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T072 [P] Extend `src/DataFixtures/AppFixtures.php` and `src/Story/AppStory.php` to build a realistic development dataset entirely from the factories — an admin, an editor and two authors, a small section tree, labels, a dozen articles across all three states, a few nested pages, and some catalogued files
-- [ ] T073 [P] Update `docs/domain-model.md` so the intended model and the delivered one agree, including the `app_user` table name and the `PublishableContent` superclass, which the document does not currently mention
-- [ ] T074 [P] Re-check the migration count in `plan.md` and `research.md` against what was actually generated. Both were corrected from one to five when this task list was written; if the implementation produced a different number, correct them again rather than leaving the figure stale
-- [ ] T075 [P] Update `docs/status.md` to record what now exists: entities, repositories, migrations, factories and the test suite — and state plainly that there are no functional tests in this feature because it adds no routes
-- [ ] T076 Run `composer qa` and fix every finding **at its cause**. No lowered PHPStan level, no baseline, no suppression, no skipped test (constitution principle III)
-- [ ] T077 Have the `symfony-reviewer` agent review the change against `CLAUDE.md`, and act on what it finds (constitution, Development Workflow phase 4)
-- [ ] T078 Walk the validation scenarios in `quickstart.md` by hand, including the foreign-key `delete_rule` query, and confirm each matches `data-model.md`
-- [ ] T079 Update `spec.md` and `plan.md` for anything the implementation settled differently, so the specification is never left describing something that was not built (constitution principle II)
+- [x] T072 [P] Extend `src/DataFixtures/AppFixtures.php` and `src/Story/AppStory.php` to build a realistic development dataset entirely from the factories — 4 accounts, 3 sections nested two deep, 5 labels, 12 articles (8 published, 2 draft, 2 archived), 6 pages including a nested pair and one draft, and 6 files of which one has no alternative text. Deliberately not uniform: a dataset where everything is published and everything is described makes every screen look correct, including the ones that are not
+- [x] T073 [P] Update `docs/domain-model.md` so the intended model and the delivered one agree — added an **Addresses** section and an **Implementation notes** section covering `app_user`, `PublishableContent`, the constructor-argument slug, the page-versus-section deletion asymmetry, and the enforce-twice rule
+- [x] T074 [P] Re-check the migration count. Five were generated, which is what `plan.md` and `research.md` now say: `app_user`, `article` + `page`, taxonomy, page nesting, `media`
+- [x] T075 [P] Update `docs/status.md` — now records what exists, what does not, and a **Known gaps in what *is* built** section, because behaviour that looks complete and is not is worse than a missing feature
+- [x] T076 Run `composer qa` and fix every finding **at its cause**. Passing: 279 tests, 586 assertions, PHPStan level max with no baseline, no ignore comment and no skipped test
+- [x] T078 Walk the validation scenarios in `quickstart.md`, including the foreign-key `delete_rule` query. All nine constraints match `data-model.md` exactly: `RESTRICT` on `article.author_id`, `media.uploaded_by_id` and `page.parent_id`; `SET NULL` on both `featured_image_id` columns, `article.category_id` and `category.parent_id`; `CASCADE` on both `article_tag` columns
+- [x] T079 Update `spec.md`, `plan.md` and `contracts/domain-api.md` for what the implementation settled differently — the constructor-argument slug, the promoted constructors, the absent `eraseCredentials()`, the exception base class and the migration count are all recorded where they belong
+
+### T077 — not done as written
+
+- [ ] T077 Have the `symfony-reviewer` agent review the change against `CLAUDE.md`
+
+**Reported rather than quietly skipped.** This session is configured not to spawn
+subagents, so the `symfony-reviewer` agent was not invoked. The constitution
+requires that review at phase 4 of the workflow, so this task stays open and
+should be run before the branch merges.
+
+The mechanical half of what that agent checks was verified directly, and the
+evidence is worth recording either way:
+
+| Check | Result |
+| --- | --- |
+| `declare(strict_types=1)` in every PHP file under `src/`, `tests/`, `migrations/` | 69 of 69 |
+| No `Request`, `Response`, `Session`, Twig or `ContainerInterface` under `src/Entity/` or `src/Service/` | No matches — constitution principle I holds |
+| No repository method returning a `QueryBuilder` publicly | The only two are `private function publishedQuery()` |
+| No `setStatus()`, `setPublishedAt()`, `setSlug()` or `setFilename()` anywhere | None exist |
+| Foreign-key delete rules against `data-model.md` | All nine match |
+| Mapping and schema in sync | `doctrine:schema:validate` reports both OK |
+
+What a reviewer would still add is judgement rather than mechanics — whether the
+mapped superclass is carrying anything that belongs in a subclass, and whether
+the deletion services have grown responsibilities beyond deleting.
 
 ---
 
