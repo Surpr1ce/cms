@@ -7,6 +7,14 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # Shown in the header, the footer and every page title. A parameter rather
+    # than a hard-coded string so that the one place it lives is obvious; it
+    # becomes a setting the moment somebody needs to change it without a deploy.
+    app.site_name: 'CMS'
+
+    # Articles per listing page. Conventional, and cheap to change — the
+    # pagination boundaries are covered by unit tests that do not depend on it.
+    app.articles_per_page: 20
 
 services:
     # default configuration for services in *this* file
@@ -21,3 +29,8 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    # Autowiring cannot guess an int, so the page size is bound explicitly.
+    App\Service\Pagination\Paginator:
+        arguments:
+            $perPage: '%app.articles_per_page%'

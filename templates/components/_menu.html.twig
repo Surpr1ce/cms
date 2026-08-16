@@ -1,0 +1,32 @@
+{#
+   The site menu. `pages` is a list of published top-level pages, each with its
+   published children already loaded, in the order somebody chose.
+
+   Rendered from `public_menu()` rather than passed down from every controller,
+   because a menu missing from one page because a controller forgot it is a
+   defect nobody notices until a reader is stuck.
+#}
+{% if pages is not empty %}
+    <nav class="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm" aria-label="Site">
+        {% for entry in pages %}
+            <div class="flex items-baseline gap-x-2">
+                <a href="{{ path('page_show', { slug: entry.page.slug }) }}"
+                   class="text-muted no-underline hover:text-ink hover:underline">
+                    {{ entry.page.title }}
+                </a>
+
+                {% if entry.children is not empty %}
+                    <span class="text-rule" aria-hidden="true">/</span>
+                    <span class="flex flex-wrap gap-x-2">
+                        {% for child in entry.children %}
+                            <a href="{{ path('page_show', { slug: child.slug }) }}"
+                               class="text-muted no-underline hover:text-ink hover:underline">
+                                {{ child.title }}
+                            </a>
+                        {% endfor %}
+                    </span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </nav>
+{% endif %}

@@ -1,0 +1,17 @@
+{% extends 'public/layout.html.twig' %}
+
+{% block title %}{{ site_name }}{% endblock %}
+
+{% block main %}
+    {% if page.items is empty %}
+        <p class="text-muted">Nothing has been published yet.</p>
+    {% else %}
+        <div class="space-y-8">
+            {% for article in page.items %}
+                {{ include('components/_article_card.html.twig', { article: article }, with_context = false) }}
+            {% endfor %}
+        </div>
+
+        {{ include('components/_pagination.html.twig', { page: page, route: 'home', routeParams: {} }, with_context = false) }}
+    {% endif %}
+{% endblock %}

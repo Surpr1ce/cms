@@ -1,0 +1,46 @@
+{% extends 'public/layout.html.twig' %}
+
+{% block title %}{{ category.name }} — {{ site_name }}{% endblock %}
+{% block meta_description %}{{ category.description|default('')|striptags }}{% endblock %}
+
+{% block main %}
+    <header class="border-b border-rule pb-6">
+        <h1 class="text-2xl font-semibold tracking-tight">{{ category.name }}</h1>
+
+        {% if category.description %}
+            <p class="mt-2 text-muted">{{ category.description }}</p>
+        {% endif %}
+
+        {% if children is not empty %}
+            <ul class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                {% for child in children %}
+                    <li>
+                        <a href="{{ path('category_show', { slug: child.slug }) }}"
+                           class="text-accent no-underline hover:underline">{{ child.name }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </header>
+
+    {% if page.items is empty %}
+        {#
+           Empty, not missing. The section exists; it simply has nothing a reader
+           may see. Returning 404 here would tell an outsider the difference
+           between "no such section" and "a section with only drafts in it".
+        #}
+        <p class="mt-8 text-muted">Nothing has been published in this section yet.</p>
+    {% else %}
+        <div class="mt-8 space-y-8">
+            {% for article in page.items %}
+                {{ include('components/_article_card.html.twig', { article: article }, with_context = false) }}
+            {% endfor %}
+        </div>
+
+        {{ include('components/_pagination.html.twig', {
+            page: page,
+            route: 'category_show',
+            routeParams: { slug: category.slug },
+        }, with_context = false) }}
+    {% endif %}
+{% endblock %}

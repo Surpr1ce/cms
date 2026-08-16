@@ -1,6 +1,14 @@
 twig:
     file_name_pattern: '*.twig'
 
+    globals:
+        # Available to every template including the error pages, which have no
+        # controller of ours to pass it down.
+        site_name: '%app.site_name%'
+
 when@test:
     twig:
+        # A template referencing a variable that does not exist fails the suite
+        # rather than rendering an empty string. A silently missing title is the
+        # kind of defect that reaches production looking fine.
         strict_variables: true

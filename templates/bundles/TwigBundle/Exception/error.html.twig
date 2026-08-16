@@ -1,0 +1,24 @@
+{% extends 'public/layout.html.twig' %}
+
+{#
+   Every status this project does not template individually.
+
+   Deliberately says nothing about what went wrong. FR-020 forbids disclosing a
+   file path, a class name, a query, a stack trace or a version, and the way to
+   guarantee that is to have no variable here that could carry one. The detail is
+   in the log, where somebody who is allowed to see it can.
+#}
+
+{% block title %}Something went wrong — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <h1 class="text-2xl font-semibold tracking-tight">Something went wrong</h1>
+
+    <p class="mt-3 text-muted">
+        This page could not be shown. The problem has been recorded.
+    </p>
+
+    <p class="mt-8 text-sm">
+        <a href="{{ path('home') }}" class="text-accent no-underline hover:underline">&larr; Back to the front page</a>
+    </p>
+{% endblock %}

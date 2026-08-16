@@ -1,0 +1,31 @@
+{#
+   Previous and next, and nothing else.
+
+   Numbered pages would need a total count, and a total count is the second query
+   per listing that SC-007 exists to avoid. `page` carries `hasPrevious` and
+   `hasNext`, which one extra fetched row already answered.
+
+   `route` and `routeParams` are passed in so this works for the home listing, a
+   section and a label without knowing which it is.
+#}
+{% if page.hasPrevious or page.hasNext %}
+    <nav class="mt-10 flex justify-between border-t border-rule pt-6 text-sm" aria-label="Pagination">
+        {% if page.hasPrevious %}
+            <a href="{{ path(route, routeParams|merge({ page: page.previousNumber })) }}"
+               class="text-accent no-underline hover:underline" rel="prev">
+                &larr; Newer
+            </a>
+        {% else %}
+            <span></span>
+        {% endif %}
+
+        {% if page.hasNext %}
+            <a href="{{ path(route, routeParams|merge({ page: page.nextNumber })) }}"
+               class="text-accent no-underline hover:underline" rel="next">
+                Older &rarr;
+            </a>
+        {% else %}
+            <span></span>
+        {% endif %}
+    </nav>
+{% endif %}

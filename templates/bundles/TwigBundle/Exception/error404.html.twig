@@ -1,0 +1,25 @@
+{% extends 'public/layout.html.twig' %}
+
+{#
+   A page belonging to this site, not a framework error screen.
+
+   This is the single response for three different situations: an address that
+   never existed, a draft, and something archived. They must be indistinguishable
+   (FR-002, SC-002), so this template says nothing about which one happened —
+   there is no "this article was withdrawn" branch, and there cannot be one,
+   because the controllers throw the same exception without recording why.
+#}
+
+{% block title %}Not found — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <h1 class="text-2xl font-semibold tracking-tight">Not found</h1>
+
+    <p class="mt-3 text-muted">
+        There is nothing at this address.
+    </p>
+
+    <p class="mt-8 text-sm">
+        <a href="{{ path('home') }}" class="text-accent no-underline hover:underline">&larr; Back to the front page</a>
+    </p>
+{% endblock %}

@@ -88,6 +88,47 @@ final class PageRepository extends ServiceEntityRepository implements SluggedRep
     }
 
     /**
+     * Every published page, ordered so a menu can be assembled from one query.
+     *
+     * The whole set rather than one level at a time: a site's menu is a handful
+     * of rows, and fetching it level by level is a query per level for no gain.
+     * The parent is join-fetched so grouping by parent needs no further query.
+     *
+     * @return list<Page>
+     */
+    public function findPublishedForMenu(): array
+    {
+        return array_values(
+            $this->createQueryBuilder(self::ALIAS)
+                ->addSelect('parent')
+                ->leftJoin(self::ALIAS.'.parent', 'parent')
+                ->andWhere(self::ALIAS.'.status = :status')
+                ->setParameter('status', ContentStatus::Published)
+                ->orderBy(self::ALIAS.'.menuOrder', 'ASC')
+                ->addOrderBy(self::ALIAS.'.title', 'ASC')
+                ->getQuery()
+                ->getResult(),
+        );
+    }
+
+    /**
+     * One published page with its lead image and parent chain available.
+     */
+    public function findOnePublishedBySlugWithRelations(string $slug): ?Page
+    {
+        $result = $this->publishedQuery()
+            ->addSelect('featuredImage', 'parent')
+            ->leftJoin(self::ALIAS.'.featuredImage', 'featuredImage')
+            ->leftJoin(self::ALIAS.'.parent', 'parent')
+            ->andWhere(self::ALIAS.'.slug = :slug')
+            ->setParameter('slug', $slug)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $result instanceof Page ? $result : null;
+    }
+
+    /**
      * Pages using a file as their lead image, in any status — what MediaDeleter
      * has to detach before the file goes.
      *

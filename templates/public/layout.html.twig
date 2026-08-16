@@ -1,0 +1,31 @@
+{% extends 'base.html.twig' %}
+
+{#
+   The site's own chrome. Every public page and every error page extends this,
+   which is what makes a 404 look like it belongs to the site rather than to the
+   framework.
+#}
+
+{% block body %}
+    <div class="flex min-h-full flex-col">
+        <header class="border-b border-rule">
+            <div class="mx-auto flex max-w-3xl flex-wrap items-baseline gap-x-6 gap-y-2 px-5 py-5">
+                <a href="{{ path('home') }}" class="text-lg font-semibold tracking-tight text-ink no-underline">
+                    {{ site_name }}
+                </a>
+
+                {{ include('components/_menu.html.twig', { pages: public_menu() }, with_context = false) }}
+            </div>
+        </header>
+
+        <main class="mx-auto w-full max-w-3xl grow px-5 py-10">
+            {% block main %}{% endblock %}
+        </main>
+
+        <footer class="border-t border-rule">
+            <div class="mx-auto max-w-3xl px-5 py-6 text-sm text-muted">
+                {{ site_name }}
+            </div>
+        </footer>
+    </div>
+{% endblock %}
