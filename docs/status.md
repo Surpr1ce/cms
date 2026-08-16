@@ -38,16 +38,33 @@ contract and task list in `specs/001-core-content-model/`.
 | Development fixtures | `AppStory` builds 4 accounts, 3 sections, 5 labels, 12 articles across all three states, 6 pages and 6 files |
 | Test suite | **279 tests, 586 assertions, passing** |
 
+### Feature 002 — public website
+
+Branch `002-public-website`. Merged into feature 001's model; the site renders.
+
+| Area | State |
+| --- | --- |
+| Phases 1–8 | Built, `composer qa` green |
+| Routes | `/`, `/articles/{slug}`, `/sections/{slug}`, `/topics/{slug}`, `/{slug}` — see [ADR 8](adr/0008-public-address-scheme.md) |
+| Controllers | Five, thin; none queries directly and none checks a status — every route resolves through a repository method that cannot return unpublished content |
+| Templates | Site layout, home, article, section, label, page, four components, and 404 and error pages inside the site's own layout |
+| Styling | Tailwind v4.3.3, pinned, built from a standalone binary. No Node, no `package.json`, no `node_modules` |
+| Pagination | 20 per page, next/previous only, one extra fetched row instead of a `COUNT` |
+| Menu | One query per request, built by a Twig extension so no controller can forget it |
+| Functional test suite | **73 tests** — the suite that was empty until this feature |
+| Whole project | **379 tests, 780 assertions, passing** |
+
 ## Not done
 
 | Area | State |
 | --- | --- |
-| Phase 9 of feature 001 | Documentation and review tasks in progress |
-| Functional tests | **None, because the project has no routes yet.** `docs/testing.md` requires an anonymous-user case and a wrong-role case for every route; that requirement starts applying to the first feature that adds one. It is not waived |
+| `symfony-reviewer` pass on features 001 and 002 | **Open.** The constitution requires it at phase 4 of the workflow; the sessions that built both features could not spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md` |
+| Wrong-role functional tests | Not applicable yet. `docs/testing.md` requires an anonymous case *and* a wrong-role case for every route; every route so far is public, so there is no role to be wrong. It starts applying with the first protected route |
 | Security configuration, voters, login | Not started. `config/packages/security.yaml` is still the skeleton default with an in-memory provider |
 | Admin screens (EasyAdmin and hand-written) | Not started. EasyAdmin is installed but unconfigured |
-| Public frontend templates | Not started |
-| Media upload handling | Not started. Feature 001 catalogues files; it does not receive, validate, store or serve them |
+| Media upload handling | Not started. Feature 001 catalogues files and feature 002 renders a lead image from the recorded filename, but nothing puts bytes on disk — so an article with an image renders without it, by design |
+| Search, feeds, sitemap, social preview metadata | Not started |
+| Caching of any kind | Not started, and deliberately so — the menu costs one query per request |
 | Read-only API resources | Not started. API Platform is installed but exposes nothing |
 | Security and quality audits | Not started |
 | GitHub Actions CI | Written, **never executed**. The workflow is unverified |
@@ -71,6 +88,15 @@ feature.
 - **`User::$password` starts empty.** Symfony's hasher needs the user object to
   choose a hasher, so the account exists before its hash does. An empty hash
   matches nothing, so the intermediate state cannot authenticate.
+- **Content markup is rendered unsanitised.** Article and page bodies are stored
+  as supplied and rendered as markup, which is what FR-024 of feature 002 asks
+  for. Nothing sanitises them. This is safe only because there is no editor yet
+  and the only author is a developer loading fixtures. **Whichever feature first
+  lets somebody paste markup into the CMS inherits this obligation**, and it is
+  the single most important thing to get right in the administration feature.
+- **A page can never be called `articles`, `sections`, `topics`, `api` or
+  `admin`**, and any future root-level prefix adds to that list. See
+  [ADR 8](adr/0008-public-address-scheme.md).
 
 ## Known constraints
 

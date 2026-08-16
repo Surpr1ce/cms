@@ -66,6 +66,94 @@ final class ArticleRepository extends ServiceEntityRepository implements Slugged
     }
 
     /**
+     * A page of published articles with everything a listing renders already
+     * loaded.
+     *
+     * The author and the section are join-fetched, so the number of queries does
+     * not grow with the number of articles on the page (SC-007). Labels are not,
+     * because a listing does not show them — join-fetching a to-many association
+     * alongside a limit is also how a paginated query quietly starts returning
+     * the wrong number of rows.
+     *
+     * @return list<Article> newest first
+     */
+    public function findPublishedPage(int $limit, int $offset): array
+    {
+        return array_values(
+            $this->publishedQuery()
+                ->addSelect('author', 'category')
+                ->innerJoin(self::ALIAS.'.author', 'author')
+                ->leftJoin(self::ALIAS.'.category', 'category')
+                ->setMaxResults($limit)
+                ->setFirstResult($offset)
+                ->getQuery()
+                ->getResult(),
+        );
+    }
+
+    /**
+     * @return list<Article> newest first
+     */
+    public function findPublishedPageByCategory(Category $category, int $limit, int $offset): array
+    {
+        return array_values(
+            $this->publishedQuery()
+                ->addSelect('author', 'category')
+                ->innerJoin(self::ALIAS.'.author', 'author')
+                ->leftJoin(self::ALIAS.'.category', 'category')
+                ->andWhere(self::ALIAS.'.category = :category')
+                ->setParameter('category', $category)
+                ->setMaxResults($limit)
+                ->setFirstResult($offset)
+                ->getQuery()
+                ->getResult(),
+        );
+    }
+
+    /**
+     * @return list<Article> newest first
+     */
+    public function findPublishedPageByTag(Tag $tag, int $limit, int $offset): array
+    {
+        return array_values(
+            $this->publishedQuery()
+                ->addSelect('author', 'category')
+                ->innerJoin(self::ALIAS.'.author', 'author')
+                ->leftJoin(self::ALIAS.'.category', 'category')
+                ->innerJoin(self::ALIAS.'.tags', 'tag')
+                ->andWhere('tag = :tag')
+                ->setParameter('tag', $tag)
+                ->setMaxResults($limit)
+                ->setFirstResult($offset)
+                ->getQuery()
+                ->getResult(),
+        );
+    }
+
+    /**
+     * The article behind a public address, with its section, labels and lead
+     * image loaded.
+     *
+     * A separate method from findOnePublishedBySlug() because a page rendering
+     * one article wants everything, where a caller checking existence does not.
+     */
+    public function findOnePublishedBySlugWithRelations(string $slug): ?Article
+    {
+        $result = $this->publishedQuery()
+            ->addSelect('author', 'category', 'tags', 'featuredImage')
+            ->innerJoin(self::ALIAS.'.author', 'author')
+            ->leftJoin(self::ALIAS.'.category', 'category')
+            ->leftJoin(self::ALIAS.'.tags', 'tags')
+            ->leftJoin(self::ALIAS.'.featuredImage', 'featuredImage')
+            ->andWhere(self::ALIAS.'.slug = :slug')
+            ->setParameter('slug', $slug)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $result instanceof Article ? $result : null;
+    }
+
+    /**
      * @return list<Article> published articles in a section, newest first
      */
     public function findPublishedByCategory(Category $category, int $limit = 20, int $offset = 0): array

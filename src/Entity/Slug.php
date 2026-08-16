@@ -29,6 +29,15 @@ final class Slug
      */
     public const string PATTERN = '/^[a-z0-9]+(?:-[a-z0-9]+)*$/';
 
+    /**
+     * The same rule without the delimiters, for a route requirement.
+     *
+     * Derived rather than written twice: a route that accepted a shape the
+     * entity refuses would advertise addresses no content can ever have, and two
+     * copies of a regular expression drift the way two copies of anything do.
+     */
+    public const string ROUTE_PATTERN = '[a-z0-9]+(?:-[a-z0-9]+)*';
+
     private function __construct()
     {
     }

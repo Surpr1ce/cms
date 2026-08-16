@@ -1,0 +1,44 @@
+{% extends 'public/layout.html.twig' %}
+
+{% block title %}{{ article.title }} — {{ site_name }}{% endblock %}
+{% block meta_description %}{{ article.excerpt|default('')|striptags }}{% endblock %}
+
+{% block main %}
+    <article>
+        <h1 class="text-3xl font-semibold tracking-tight">{{ article.title }}</h1>
+
+        <p class="mt-2 text-sm text-muted">
+            {% if article.publishedAt %}
+                <time datetime="{{ article.publishedAt|date('Y-m-d') }}">{{ article.publishedAt|date('j F Y') }}</time>
+                <span aria-hidden="true">·</span>
+            {% endif %}
+            {{ article.author.displayName }}
+            {% if article.category %}
+                <span aria-hidden="true">·</span>
+                <a href="{{ path('category_show', { slug: article.category.slug }) }}" class="text-muted hover:text-ink">
+                    {{ article.category.name }}
+                </a>
+            {% endif %}
+        </p>
+
+        {#
+           The lead image. `onerror` hides it rather than leaving a broken-image
+           icon: FR-023 says a missing file must not stop the article rendering,
+           and until the upload feature exists the files these names point at may
+           genuinely not be there.
+        #}
+        {% if article.featuredImage %}
+            <img src="{{ asset('uploads/' ~ article.featuredImage.filename) }}"
+                 alt="{{ article.featuredImage.altText }}"
+                 class="mt-8 w-full rounded-lg"
+                 loading="lazy"
+                 onerror="this.style.display='none'">
+        {% endif %}
+
+        <div class="prose mt-8">
+            {{ article.content|raw }}
+        </div>
+
+        {{ include('components/_tag_list.html.twig', { tags: article.tags }, with_context = false) }}
+    </article>
+{% endblock %}

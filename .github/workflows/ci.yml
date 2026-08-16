@@ -87,6 +87,13 @@ jobs:
       - name: Run migrations
         run: php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
 
+      # The stylesheet is built from the standalone Tailwind binary into var/,
+      # which is not committed. Without this step the functional tests render
+      # pages whose stylesheet does not exist. No Node, no npm — the bundle
+      # downloads a single pinned binary.
+      - name: Build the stylesheet
+        run: php bin/console tailwind:build --minify
+
       - name: Run tests with coverage
         run: vendor/bin/phpunit --coverage-text --coverage-clover=var/coverage.xml
 

@@ -1,3 +1,112 @@
-body {
-    background-color: skyblue;
+@import 'tailwindcss';
+
+/*
+ * Sources Tailwind scans for class names. AssetMapper serves the built file, so
+ * this is the only place the scan roots are declared.
+ */
+@source '../../templates/**/*.twig';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
+    --color-ink: oklch(0.22 0.01 260);
+    --color-muted: oklch(0.52 0.01 260);
+    --color-rule: oklch(0.9 0.005 260);
+    --color-accent: oklch(0.5 0.16 255);
+}
+
+/*
+ * Body text produced by an editor arrives as markup and carries no classes of
+ * its own, so the few elements it can contain are styled here rather than in the
+ * template. Scoped to .prose so it cannot reach the site's own chrome.
+ */
+@layer components {
+    .prose {
+        color: var(--color-ink);
+        line-height: 1.7;
+    }
+
+    .prose > * + * {
+        margin-top: 1.1em;
+    }
+
+    .prose h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-top: 1.8em;
+    }
+
+    .prose h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-top: 1.6em;
+    }
+
+    .prose a {
+        color: var(--color-accent);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    .prose ul,
+    .prose ol {
+        padding-left: 1.5rem;
+    }
+
+    .prose ul {
+        list-style: disc;
+    }
+
+    .prose ol {
+        list-style: decimal;
+    }
+
+    .prose blockquote {
+        border-left: 3px solid var(--color-rule);
+        padding-left: 1rem;
+        color: var(--color-muted);
+        font-style: italic;
+    }
+
+    .prose code {
+        font-family: ui-monospace, monospace;
+        font-size: 0.9em;
+        background: oklch(0.96 0.004 260);
+        padding: 0.15em 0.35em;
+        border-radius: 0.25rem;
+    }
+
+    .prose pre {
+        background: var(--color-ink);
+        color: white;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        overflow-x: auto;
+    }
+
+    .prose pre code {
+        background: transparent;
+        color: inherit;
+        padding: 0;
+    }
+
+    .prose img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.5rem;
+    }
+
+    .prose table {
+        width: 100%;
+        border-collapse: collapse;
+        display: block;
+        overflow-x: auto;
+    }
+
+    .prose th,
+    .prose td {
+        border: 1px solid var(--color-rule);
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+    }
 }

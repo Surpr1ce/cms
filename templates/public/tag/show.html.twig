@@ -1,0 +1,26 @@
+{% extends 'public/layout.html.twig' %}
+
+{% block title %}{{ tag.name }} — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <header class="border-b border-rule pb-6">
+        <p class="text-sm text-muted">Tagged</p>
+        <h1 class="text-2xl font-semibold tracking-tight">{{ tag.name }}</h1>
+    </header>
+
+    {% if page.items is empty %}
+        <p class="mt-8 text-muted">Nothing published carries this tag yet.</p>
+    {% else %}
+        <div class="mt-8 space-y-8">
+            {% for article in page.items %}
+                {{ include('components/_article_card.html.twig', { article: article }, with_context = false) }}
+            {% endfor %}
+        </div>
+
+        {{ include('components/_pagination.html.twig', {
+            page: page,
+            route: 'tag_show',
+            routeParams: { slug: tag.slug },
+        }, with_context = false) }}
+    {% endif %}
+{% endblock %}

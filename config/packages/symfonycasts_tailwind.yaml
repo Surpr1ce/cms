@@ -1,0 +1,10 @@
+symfonycasts_tailwind:
+    # The standalone Tailwind binary, downloaded to var/tailwind/ on first build.
+    # This is what keeps the promise of no Node build step: there is no
+    # package.json, no node_modules and no npm in this project.
+    #
+    # Pinned rather than tracking the latest release. An unpinned version means
+    # the CSS a contributor builds today and the CSS CI builds tomorrow can
+    # differ, and a visual change nobody made is the hardest kind to trace.
+    # Raising it is a deliberate edit, and the built file is committed alongside.
+    binary_version: v4.3.3
