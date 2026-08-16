@@ -124,24 +124,34 @@ no container, no HTTP, and for the unit tests no database.
 
 ### Tests for User Story 1
 
-- [ ] T019 [P] [US1] Write `tests/Unit/Entity/PublishableContentTransitionsTest.php` — each of the five permitted transitions succeeds; every other transition throws `InvalidStatusTransition` carrying the current and attempted status; `restore()` lands on `draft`, never `published` (FR-004)
-- [ ] T020 [P] [US1] Write `tests/Unit/Entity/PublicationDateTest.php` — `publishedAt` is null on a new draft; set to the passed-in time on first publish; **unchanged** after unpublish → publish with a different time; unchanged by `archive()` (FR-005, FR-006, SC-005)
-- [ ] T021 [P] [US1] Write `tests/Unit/Entity/ContentNotPublishableTest.php` — publishing with a blank title, a whitespace-only title, or an empty body throws `ContentNotPublishable` and leaves the status at `draft` (FR-007)
+- [x] T019 [P] [US1] Write `tests/Unit/Entity/PublishableContentTransitionsTest.php` — each of the five permitted transitions succeeds; every other transition throws `InvalidStatusTransition` carrying the current and attempted status; `restore()` lands on `draft`, never `published` (FR-004)
+- [x] T020 [P] [US1] Write `tests/Unit/Entity/PublicationDateTest.php` — `publishedAt` is null on a new draft; set to the passed-in time on first publish; **unchanged** after unpublish → publish with a different time; unchanged by `archive()` (FR-005, FR-006, SC-005)
+- [x] T021 [P] [US1] Write `tests/Unit/Entity/ContentNotPublishableTest.php` — publishing with a blank title, a whitespace-only title, or an empty body throws `ContentNotPublishable` and leaves the status at `draft` (FR-007)
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] Create `src/Entity/PublishableContent.php` — abstract `#[ORM\MappedSuperclass]` with `id`, `title`, `slug`, `excerpt`, `content`, `status`, `publishedAt`, `createdAt`, `updatedAt`, the four transition methods, `isPublished()`, and a `#[ORM\PreUpdate]` callback maintaining `updatedAt`. No `setStatus()`, no `setPublishedAt()` (see `contracts/domain-api.md`)
-- [ ] T023 [P] [US1] Create `src/Entity/Article.php` extending it — constructor takes `User $author` and `\DateTimeImmutable $now`; `author_id` is `NOT NULL` with `ON DELETE RESTRICT`. Category, tags and lead image arrive in later phases
-- [ ] T024 [P] [US1] Create `src/Entity/Page.php` extending it — constructor takes `\DateTimeImmutable $now` only; no author, no category, no tags (FR-019). Parent and menu order arrive in Phase 6
-- [ ] T025 [US1] Create `src/Repository/ArticleRepository.php` with `findOneBySlug()`, `findOnePublishedBySlug()`, `findPublished()` and `countPublished()`, all routed through one private published scope, ordered `published_at DESC, id DESC`. Return `list<Article>`, never a `QueryBuilder`
-- [ ] T026 [US1] Create `src/Repository/PageRepository.php` with `findOneBySlug()` and `findOnePublishedBySlug()`, sharing the same published-scope approach
-- [ ] T027 [P] [US1] Create `src/Factory/ArticleFactory.php` with `draft()`, `published()` and `archived()` states
-- [ ] T028 [P] [US1] Create `src/Factory/PageFactory.php` with the same three states
-- [ ] T029 [US1] Generate the migration creating `article` and `page` — unique index on each `slug`, index on `(status, published_at DESC)`, index on `author_id`, `article.author_id` → `app_user(id)` `ON DELETE RESTRICT`
-- [ ] T030 [US1] Write `tests/Integration/Repository/ArticleRepositoryTest.php` — `findPublished()` returns published articles newest first and **excludes drafts and archived content**; `findOnePublishedBySlug()` misses on a draft while `findOneBySlug()` hits (FR-031, SC-003)
-- [ ] T031 [US1] Write `tests/Integration/Repository/PageRepositoryTest.php` — same published-scope assertions for pages, proving US4 scenario 5 at the repository level
+- [x] T022 [US1] Create `src/Entity/PublishableContent.php` — abstract `#[ORM\MappedSuperclass]` with `id`, `title`, `slug`, `excerpt`, `content`, `status`, `publishedAt`, `createdAt`, `updatedAt`, the four transition methods, `isPublished()`, and a `#[ORM\PreUpdate]` callback maintaining `updatedAt`. No `setStatus()`, no `setPublishedAt()` (see `contracts/domain-api.md`)
+- [x] T023 [P] [US1] Create `src/Entity/Article.php` extending it — constructor takes `string $title`, `string $slug`, `User $author` and `\DateTimeImmutable $createdAt`; `author_id` is `NOT NULL` with `ON DELETE RESTRICT`. Category, tags and lead image arrive in later phases
+- [x] T024 [P] [US1] Create `src/Entity/Page.php` extending it — constructor takes `string $title`, `string $slug` and `\DateTimeImmutable $createdAt`; no author, no category, no tags (FR-019). Parent and menu order arrive in Phase 6
+- [x] T025 [US1] Create `src/Repository/ArticleRepository.php` with `findOneBySlug()`, `findOnePublishedBySlug()`, `findPublished()`, `countPublished()`, `countByAuthor()` and `existsWithSlug()`, all published queries routed through one private scope, ordered `published_at DESC, id DESC`. Return `list<Article>`, never a `QueryBuilder`
+- [x] T026 [US1] Create `src/Repository/PageRepository.php` with `findOneBySlug()`, `findOnePublishedBySlug()`, `findPublished()`, `countPublished()` and `existsWithSlug()`, sharing the same published-scope approach
+- [x] T027 [P] [US1] Create `src/Factory/ArticleFactory.php` with `draft()`, `published()`, `archived()` and `publishedThenArchived()` states
+- [x] T028 [P] [US1] Create `src/Factory/PageFactory.php` with the same four states
+- [x] T029 [US1] Generate the migration creating `article` and `page` — unique index on each `slug`, index on `(status, published_at)`, index on `author_id`, `article.author_id` → `app_user(id)` `ON DELETE RESTRICT`
+- [x] T030 [US1] Write `tests/Integration/Repository/ArticleRepositoryTest.php` — `findPublished()` returns published articles newest first and **excludes drafts and archived content**; `findOnePublishedBySlug()` misses on a draft while `findOneBySlug()` hits (FR-031, SC-003)
+- [x] T031 [US1] Write `tests/Integration/Repository/PageRepositoryTest.php` — same published-scope assertions for pages, proving US4 scenario 5 at the repository level
 
-**Checkpoint**: the lifecycle is complete and proven. This is the MVP — every later phase adds fields and rules on top without changing it.
+**One decision this phase settled that the plan had left open**: the address is a
+**constructor argument**, not something assigned after construction. The
+alternative — build with an empty slug, fill it in before flush — makes two
+drafts collide on the empty string the first time anyone forgets, and the unique
+index would report it as a constraint violation rather than as the mistake it is.
+Content now cannot exist without an address. `contracts/domain-api.md` is updated
+to match.
+
+**Checkpoint**: reached. `composer qa` passes — 140 tests, 220 assertions, PHPStan
+level max clean. The lifecycle is complete and proven for articles and pages
+alike; every later phase adds fields and rules on top without changing it.
 
 ---
 

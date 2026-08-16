@@ -22,10 +22,12 @@ as such at the top of the file.
 | Spec Kit + project subagents | Installed |
 | Conventions (`CLAUDE.md`) and ADRs 1–4 | Written |
 | PostgreSQL 16 on the development machine | Installed and running, connection verified |
-| Feature 001 (`specs/001-core-content-model/`) | Specified, planned, 79 tasks generated; phases 1–2 of 9 built and passing |
-| `User` entity, repository, factory; `ContentStatus`; domain exceptions; `SlugGenerator` | Implemented, `composer qa` green |
-| First migration (`app_user`, `messenger_messages`) | Generated and applied to dev and test |
-| Test suite | 66 tests, 90 assertions, passing. Unit and integration only — no functional tests, because no routes exist yet |
+| Feature 001 (`specs/001-core-content-model/`) | Specified, planned, 79 tasks generated; phases 1–3 of 9 built and passing |
+| `User` entity, repository, factory; `ContentStatus`; domain exceptions; `SlugGenerator` | Implemented |
+| Publication lifecycle: `PublishableContent`, `Article`, `Page`, their repositories and factories | Implemented — the feature's MVP |
+| Migrations (`app_user`, `article`, `page`) | Generated and applied to dev and test |
+| Test suite | 140 tests, 220 assertions, passing. Unit and integration only — no functional tests, because no routes exist yet |
+| Quality gate | `composer qa` green: style, Rector, PHPStan level max, full suite |
 
 ## Not done
 

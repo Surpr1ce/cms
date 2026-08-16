@@ -17,13 +17,26 @@ changing the callers, so it gets a specification update first.
 ```php
 abstract class PublishableContent
 {
+    /** FR-009 in machine-readable form; shared with SlugGenerator's tests. */
+    public const string SLUG_PATTERN = '/^[a-z0-9]+(?:-[a-z0-9]+)*$/';
+
+    /** @throws \InvalidArgumentException on a malformed slug */
+    protected function __construct(
+        string $title,
+        string $slug,
+        \DateTimeImmutable $createdAt,
+    );
+
     public function getId(): ?int;
 
     public function getTitle(): string;
     public function setTitle(string $title): void;
 
     public function getSlug(): string;
-    /** @throws SlugIsFrozen once the content has been published */
+    /**
+     * @throws SlugIsFrozen once the content has been published
+     * @throws \InvalidArgumentException on a slug that does not match SLUG_PATTERN
+     */
     public function assignSlug(string $slug): void;
 
     public function getExcerpt(): ?string;
@@ -47,11 +60,22 @@ abstract class PublishableContent
     public function archive(): void;
     /** @throws InvalidStatusTransition */
     public function restore(): void;
+
+    /** Doctrine #[PreUpdate] callback; public because Doctrine has to call it. */
+    public function touch(): void;
 }
 ```
 
 There is deliberately **no** `setStatus()`, **no** `setPublishedAt()` and **no**
 `setSlug()`. Their absence is the contract, not an omission.
+
+**The address is a constructor argument, not something assigned afterwards.** The
+plan left it open; implementation settled it this way because the alternative —
+constructing content with an empty slug and filling it in before flush — makes
+two drafts collide on the empty string the moment someone forgets. Obtain the
+value from `UniqueSlugGenerator` first, then construct. The entity additionally
+refuses any slug that does not match `SLUG_PATTERN`, so FR-009 holds at the
+entity boundary as well as in the service.
 
 ### `ContentStatus`
 
@@ -72,10 +96,16 @@ enum ContentStatus: string
 ### `Article extends PublishableContent`
 
 ```php
-final class Article extends PublishableContent
+class Article extends PublishableContent
 {
-    public function __construct(User $author, \DateTimeImmutable $now);
+    public function __construct(
+        string $title,
+        string $slug,
+        User $author,
+        \DateTimeImmutable $createdAt,
+    );
 
+    /** No setter: reassigning authorship silently is not something the spec asks for. */
     public function getAuthor(): User;
 
     public function getCategory(): ?Category;
@@ -100,9 +130,13 @@ as well as at the repository one.
 ### `Page extends PublishableContent`
 
 ```php
-final class Page extends PublishableContent
+class Page extends PublishableContent
 {
-    public function __construct(\DateTimeImmutable $now);
+    public function __construct(
+        string $title,
+        string $slug,
+        \DateTimeImmutable $createdAt,
+    );
 
     public function getParent(): ?Page;
     /** @throws HierarchyWouldBeCircular */
@@ -247,6 +281,9 @@ final class PageRepository extends ServiceEntityRepository implements SluggedRep
 {
     public function findOneBySlug(string $slug): ?Page;
     public function findOnePublishedBySlug(string $slug): ?Page;
+    /** @return list<Page> newest first, published only */
+    public function findPublished(int $limit = 50, int $offset = 0): array;
+    public function countPublished(): int;
     /** @return list<Page> published children in menu order */
     public function findPublishedChildrenOf(?Page $parent): array;
     public function countChildrenOf(Page $parent): int;
