@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\ContentStatus;
+use App\Entity\Media;
 use App\Entity\Page;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -84,6 +85,17 @@ final class PageRepository extends ServiceEntityRepository implements SluggedRep
             : $query->andWhere(self::ALIAS.'.parent = :parent')->setParameter('parent', $parent);
 
         return array_values($query->getQuery()->getResult());
+    }
+
+    /**
+     * Pages using a file as their lead image, in any status — what MediaDeleter
+     * has to detach before the file goes.
+     *
+     * @return list<Page>
+     */
+    public function findByFeaturedImage(Media $media): array
+    {
+        return array_values($this->findBy(['featuredImage' => $media]));
     }
 
     public function countChildrenOf(Page $parent): int

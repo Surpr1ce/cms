@@ -6,6 +6,7 @@ namespace App\Entity;
 
 use App\Exception\ContentNotPublishable;
 use App\Exception\InvalidStatusTransition;
+use App\Exception\MediaMissingAltText;
 use App\Exception\SlugIsFrozen;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
@@ -58,6 +59,16 @@ abstract class PublishableContent
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $updatedAt;
+
+    /**
+     * SET NULL: deleting a catalogued file leaves the content intact, without a
+     * lead image (FR-024). Declared here rather than twice in the subclasses,
+     * because an article and a page each have exactly one and the rule guarding
+     * it is the same rule.
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Media $featuredImage = null;
 
     /**
      * The address is required here rather than derived later, so that content
@@ -222,6 +233,31 @@ abstract class PublishableContent
         }
 
         $this->status = ContentStatus::Draft;
+    }
+
+    public function getFeaturedImage(): ?Media
+    {
+        return $this->featuredImage;
+    }
+
+    /**
+     * A file with no alternative text cannot be put in front of a reader, because
+     * content must stay readable by people who cannot see the image.
+     *
+     * The check is here, at the point of use, rather than on Media itself: making
+     * it a requirement of cataloguing would block an upload screen on a field
+     * that belongs to the editing screen. Detaching the image — passing null —
+     * always succeeds.
+     *
+     * @throws MediaMissingAltText
+     */
+    public function setFeaturedImage(?Media $featuredImage): void
+    {
+        if ($featuredImage instanceof Media && !$featuredImage->hasAltText()) {
+            throw MediaMissingAltText::forFile($featuredImage->getFilename());
+        }
+
+        $this->featuredImage = $featuredImage;
     }
 
     #[ORM\PreUpdate]

@@ -273,21 +273,35 @@ detach them, and delete one that is in use.
 
 ### Tests for User Story 5
 
-- [ ] T059 [P] [US5] Write `tests/Unit/Service/Media/StoredFilenameGeneratorTest.php` — the generated name contains no path separator, never derives from a supplied name such as `../../evil.php`, and an unsupported MIME type throws `UnsupportedMediaType` (FR-021, FR-022, US5 scenario 1)
-- [ ] T060 [P] [US5] Write `tests/Unit/Entity/FeaturedImageTest.php` — attaching a file with no alternative text throws `MediaMissingAltText` for both `Article` and `Page`; attaching `null` always succeeds (FR-023)
-- [ ] T061 [P] [US5] Write `tests/Integration/Service/Media/MediaDeleterTest.php` — deleting a file used as a lead image leaves the article intact with no lead image, **both in the database and in the already-loaded entity** (FR-024, `research.md` decision 6)
+- [x] T059 [P] [US5] Write `tests/Unit/Service/Media/StoredFilenameGeneratorTest.php` — the generated name contains no path separator, never derives from a supplied name such as `../../evil.php`, and an unsupported MIME type throws `UnsupportedMediaType` (FR-021, FR-022, US5 scenario 1)
+- [x] T060 [P] [US5] Write `tests/Unit/Entity/FeaturedImageTest.php` — attaching a file with no alternative text throws `MediaMissingAltText` for both `Article` and `Page`; attaching `null` always succeeds (FR-023)
+- [x] T061 [P] [US5] Write `tests/Integration/Service/Media/MediaDeleterTest.php` — deleting a file used as a lead image leaves the article intact with no lead image, **both in the database and in the already-loaded entity** (FR-024, `research.md` decision 6)
 
 ### Implementation for User Story 5
 
-- [ ] T062 [US5] Create `src/Entity/Media.php` — `filename` taken through the constructor with no setter at all, `originalName` as display text, `mimeType`, `size`, nullable `altText`, `uploadedBy` (`ON DELETE RESTRICT`), `uploadedAt`
-- [ ] T063 [US5] Create `src/Service/Media/StoredFilenameGenerator.php` — `bin2hex(random_bytes(16))` plus an extension from a MIME allow-list, ignoring any supplied name entirely
-- [ ] T064 [US5] Add `featuredImage` with the `MediaMissingAltText` guard to `src/Entity/Article.php` and `src/Entity/Page.php` (`ON DELETE SET NULL` on both)
-- [ ] T065 [P] [US5] Create `src/Repository/MediaRepository.php` — `findRecent()` and `countUploadedBy()`
-- [ ] T066 [P] [US5] Create `src/Factory/MediaFactory.php` with a `withoutAltText()` state
-- [ ] T067 [US5] Create `src/Service/Media/MediaDeleter.php` — clears every referencing lead image in memory, then removes the row
-- [ ] T068 [US5] Generate the migration creating `media` and adding `featured_image_id` to `article` and `page` with their indexes and `ON DELETE SET NULL` foreign keys
+- [x] T062 [US5] Create `src/Entity/Media.php` — `filename` taken through the constructor with no setter at all, `originalName` as display text, `mimeType`, `size`, nullable `altText`, `uploadedBy` (`ON DELETE RESTRICT`), `uploadedAt`
+- [x] T063 [US5] Create `src/Service/Media/StoredFilenameGenerator.php` — `bin2hex(random_bytes(16))` plus an extension from a MIME allow-list, ignoring any supplied name entirely
+- [x] T064 [US5] Add `featuredImage` with the `MediaMissingAltText` guard — declared once in `src/Entity/PublishableContent.php` rather than twice in the subclasses, because an article and a page each have exactly one and the rule guarding it is the same rule (`ON DELETE SET NULL` on both tables)
+- [x] T065 [P] [US5] Create `src/Repository/MediaRepository.php` — `findRecent()`, `findOneByFilename()` and `countUploadedBy()`
+- [x] T066 [P] [US5] Create `src/Factory/MediaFactory.php` with `withoutAltText()` and `pdf()` states
+- [x] T067 [US5] Create `src/Service/Media/MediaDeleter.php` — clears every referencing lead image in memory, then removes the row
+- [x] T068 [US5] Generate the migration creating `media` and adding `featured_image_id` to `article` and `page` with their indexes and `ON DELETE SET NULL` foreign keys
 
-**Checkpoint**: files are catalogued safely and removable without collateral damage
+**One assertion PHPStan refused, and rightly**: `FeaturedImageTest` originally
+asserted `method_exists($media, 'setFilename') === false`. At level max that is a
+statically known falsehood, and PHPStan said so. The assertion was removed rather
+than worked around: an added setter would fail the quality gate long before a
+test could see it, so a guarantee the type system holds does not need a weaker
+one beside it. The reasoning is left in the test as a comment.
+
+**SVG is deliberately not in the accepted-type list.** It is a document that can
+carry script, and accepting it would mean serving attacker-controlled markup from
+this site's own origin. Adding it later is a decision with its own reasoning, not
+an oversight — `StoredFilenameGeneratorTest` asserts its absence so that the
+choice cannot be reversed silently.
+
+**Checkpoint**: reached. `composer qa` passes — 268 tests, 522 assertions. Files
+are catalogued safely and removable without collateral damage.
 
 ---
 

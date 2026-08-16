@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\Article;
 use App\Entity\Category;
 use App\Entity\ContentStatus;
+use App\Entity\Media;
 use App\Entity\Tag;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -106,6 +107,17 @@ final class ArticleRepository extends ServiceEntityRepository implements Slugged
     public function findByCategory(Category $category): array
     {
         return array_values($this->findBy(['category' => $category]));
+    }
+
+    /**
+     * Articles using a file as their lead image, in any status — what
+     * MediaDeleter has to detach before the file goes.
+     *
+     * @return list<Article>
+     */
+    public function findByFeaturedImage(Media $media): array
+    {
+        return array_values($this->findBy(['featuredImage' => $media]));
     }
 
     public function countPublished(): int
