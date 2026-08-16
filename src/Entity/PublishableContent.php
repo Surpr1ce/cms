@@ -10,10 +10,6 @@ use App\Exception\SlugIsFrozen;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use InvalidArgumentException;
-
-use function sprintf;
-
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -32,13 +28,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\MappedSuperclass]
 abstract class PublishableContent
 {
-    /**
-     * FR-009: lowercase letters, digits and single hyphens, with no hyphen at
-     * either end. The same expression is asserted directly in the unit tests for
-     * SlugGenerator, so the service and the entity agree by construction.
-     */
-    public const string SLUG_PATTERN = '/^[a-z0-9]+(?:-[a-z0-9]+)*$/';
-
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -46,7 +35,7 @@ abstract class PublishableContent
 
     #[ORM\Column(length: 200, unique: true)]
     #[Assert\NotBlank]
-    #[Assert\Regex(pattern: self::SLUG_PATTERN)]
+    #[Assert\Regex(pattern: Slug::PATTERN)]
     private string $slug;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -84,7 +73,7 @@ abstract class PublishableContent
         #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
         private readonly DateTimeImmutable $createdAt,
     ) {
-        $this->slug = $this->assertSlugIsWellFormed($slug);
+        $this->slug = Slug::assertWellFormed($slug);
         $this->updatedAt = $createdAt;
     }
 
@@ -121,7 +110,7 @@ abstract class PublishableContent
             throw SlugIsFrozen::between($this->slug, $slug);
         }
 
-        $this->slug = $this->assertSlugIsWellFormed($slug);
+        $this->slug = Slug::assertWellFormed($slug);
     }
 
     public function getExcerpt(): ?string
@@ -239,15 +228,6 @@ abstract class PublishableContent
     public function touch(): void
     {
         $this->updatedAt = new DateTimeImmutable();
-    }
-
-    private function assertSlugIsWellFormed(string $slug): string
-    {
-        if (1 !== preg_match(self::SLUG_PATTERN, $slug)) {
-            throw new InvalidArgumentException(sprintf('"%s" is not a usable address.', $slug));
-        }
-
-        return $slug;
     }
 
     /**

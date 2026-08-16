@@ -198,21 +198,35 @@ of it, and assert what survives.
 
 ### Tests for User Story 3
 
-- [ ] T039 [P] [US3] Write `tests/Unit/Entity/CategoryHierarchyTest.php` — a category cannot be its own parent, nor its own grandparent, and the attempt throws `HierarchyWouldBeCircular` (FR-015)
-- [ ] T040 [P] [US3] Write `tests/Integration/Service/Taxonomy/CategoryDeleterTest.php` — deleting a section leaves its articles with a null category and re-parents its child sections to the grandparent (FR-016, US3 scenarios 3 and 4)
-- [ ] T041 [P] [US3] Write `tests/Integration/Repository/TaxonomyRepositoryTest.php` — `CategoryRepository::findChildrenOf()`, `TagRepository::findInUse()` returning only labels carried by at least one **published** article, and duplicate names producing distinct slugs (US3 scenario 6)
+- [x] T039 [P] [US3] Write `tests/Unit/Entity/CategoryHierarchyTest.php` — a category cannot be its own parent, nor its own grandparent, and the attempt throws `HierarchyWouldBeCircular` (FR-015)
+- [x] T040 [P] [US3] Write `tests/Integration/Service/Taxonomy/CategoryDeleterTest.php` — deleting a section leaves its articles with a null category and re-parents its child sections to the grandparent (FR-016, US3 scenarios 3 and 4)
+- [x] T041 [P] [US3] Write `tests/Integration/Repository/TaxonomyRepositoryTest.php` — `CategoryRepository::findChildrenOf()`, `TagRepository::findInUse()` returning only labels carried by at least one **published** article, and duplicate names producing distinct slugs (US3 scenario 6)
 
 ### Implementation for User Story 3
 
-- [ ] T042 [P] [US3] Create `src/Entity/Category.php` — name, slug, description, self-referencing `parent` with the circularity walk in `setParent()`
-- [ ] T043 [P] [US3] Create `src/Entity/Tag.php` — name and slug only, with no parent column, so nesting is unrepresentable rather than merely discouraged (FR-014)
-- [ ] T044 [US3] Add the `category` association (`ON DELETE SET NULL`) and the `tags` many-to-many via `article_tag` (both sides `ON DELETE CASCADE`) to `src/Entity/Article.php`, with `setCategory()`, `addTag()` and `removeTag()` guarding against duplicates, and `getTags()` returning `list<Tag>` rather than a Doctrine `Collection`
-- [ ] T045 [P] [US3] Create `src/Repository/CategoryRepository.php` — `findOneBySlug()`, `findChildrenOf()`, `existsWithSlug()`
-- [ ] T046 [P] [US3] Create `src/Repository/TagRepository.php` — `findOneBySlug()`, `findInUse()`, `existsWithSlug()`
-- [ ] T047 [P] [US3] Create `src/Factory/CategoryFactory.php` (with a `childOf()` state) and `src/Factory/TagFactory.php`
-- [ ] T048 [US3] Create `src/Service/Taxonomy/CategoryDeleter.php` — clears the in-memory article associations, re-parents children, then removes the row
-- [ ] T049 [US3] Generate the migration creating `category`, `tag` and `article_tag`, and adding `article.category_id` with its index and foreign key
-- [ ] T050 [US3] Add `findPublishedByCategory()` and `findPublishedByTag()` to `ArticleRepository` and extend `tests/Integration/Repository/ArticleRepositoryTest.php` to prove both apply the published scope (FR-030, FR-031)
+- [x] T042 [P] [US3] Create `src/Entity/Category.php` — name, slug, description, self-referencing `parent` with the circularity walk in `setParent()`
+- [x] T043 [P] [US3] Create `src/Entity/Tag.php` — name and slug only, with no parent column, so nesting is unrepresentable rather than merely discouraged (FR-014)
+- [x] T044 [US3] Add the `category` association (`ON DELETE SET NULL`) and the `tags` many-to-many via `article_tag` (both sides `ON DELETE CASCADE`) to `src/Entity/Article.php`, with `setCategory()`, `addTag()` and `removeTag()` guarding against duplicates, and `getTags()` returning `list<Tag>` rather than a Doctrine `Collection`
+- [x] T045 [P] [US3] Create `src/Repository/CategoryRepository.php` — `findOneBySlug()`, `findChildrenOf()`, `findAllOrdered()`, `existsWithSlug()`
+- [x] T046 [P] [US3] Create `src/Repository/TagRepository.php` — `findOneBySlug()`, `findInUse()`, `findAllOrdered()`, `existsWithSlug()`
+- [x] T047 [P] [US3] Create `src/Factory/CategoryFactory.php` (with a `childOf()` state) and `src/Factory/TagFactory.php`
+- [x] T048 [US3] Create `src/Service/Taxonomy/CategoryDeleter.php` — clears the in-memory article associations, re-parents children, then removes the row
+- [x] T049 [US3] Generate the migration creating `category`, `tag` and `article_tag`, and adding `article.category_id` with its index and foreign key
+- [x] T050 [US3] Add `findPublishedByCategory()` and `findPublishedByTag()` to `ArticleRepository`, proven against the published scope in `TaxonomyRepositoryTest` (FR-030, FR-031)
+
+**Refactoring this phase forced**: the slug-shape rule had reached three copies —
+`PublishableContent`, `Category` and `Tag` — and was about to reach four. It is
+now a single `App\Entity\Slug` holding the pattern and the assertion. Not an
+entity and not mapped; Doctrine ignores it, which
+`php bin/console doctrine:mapping:info` confirms.
+
+**A query the first attempt got wrong**: `TagRepository::findInUse()` was written
+selecting the joined alias from an `Article` root, which DQL refuses — "cannot
+select entity through identification variables without choosing at least one root
+entity alias". Rewritten with `Tag` as the root and `MEMBER OF` in the join
+condition. The test caught it, which is the point of writing it first.
+
+**Checkpoint**: reached. `composer qa` passes — 202 tests, 376 assertions.
 
 **Checkpoint**: taxonomy works and deleting any part of it destroys nothing
 

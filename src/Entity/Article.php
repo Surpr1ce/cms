@@ -6,6 +6,8 @@ namespace App\Entity;
 
 use App\Repository\ArticleRepository;
 use DateTimeImmutable;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
@@ -26,6 +28,27 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 #[UniqueEntity(fields: ['slug'], message: 'Another article already uses this address.')]
 class Article extends PublishableContent
 {
+    /**
+     * SET NULL, not CASCADE: deleting a section leaves its articles in place,
+     * uncategorised (FR-016). Deleting a grouping must never destroy what it
+     * grouped.
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Category $category = null;
+
+    /**
+     * CASCADE here deletes the *association row*, never an article — which is
+     * exactly FR-017: removing a label leaves the articles that carried it.
+     *
+     * @var Collection<int, Tag>
+     */
+    #[ORM\ManyToMany(targetEntity: Tag::class)]
+    #[ORM\JoinTable(name: 'article_tag')]
+    #[ORM\JoinColumn(name: 'article_id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'tag_id', onDelete: 'CASCADE')]
+    private Collection $tags;
+
     public function __construct(
         string $title,
         string $slug,
@@ -35,6 +58,8 @@ class Article extends PublishableContent
         DateTimeImmutable $createdAt,
     ) {
         parent::__construct($title, $slug, $createdAt);
+
+        $this->tags = new ArrayCollection();
     }
 
     /**
@@ -45,5 +70,50 @@ class Article extends PublishableContent
     public function getAuthor(): User
     {
         return $this->author;
+    }
+
+    public function getCategory(): ?Category
+    {
+        return $this->category;
+    }
+
+    /**
+     * Assigning replaces whatever was there: an article is in at most one
+     * section (FR-013). There is no addCategory(), because there is no second
+     * one to add.
+     */
+    public function setCategory(?Category $category): void
+    {
+        $this->category = $category;
+    }
+
+    /**
+     * A plain list rather than a Doctrine Collection, so templates and the API
+     * cannot mutate the association behind the entity's back.
+     *
+     * @return list<Tag>
+     */
+    public function getTags(): array
+    {
+        return array_values($this->tags->toArray());
+    }
+
+    public function addTag(Tag $tag): void
+    {
+        if ($this->tags->contains($tag)) {
+            return;
+        }
+
+        $this->tags->add($tag);
+    }
+
+    public function removeTag(Tag $tag): void
+    {
+        $this->tags->removeElement($tag);
+    }
+
+    public function hasTag(Tag $tag): bool
+    {
+        return $this->tags->contains($tag);
     }
 }

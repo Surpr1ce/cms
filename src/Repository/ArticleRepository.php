@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Article;
+use App\Entity\Category;
 use App\Entity\ContentStatus;
+use App\Entity\Tag;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -60,6 +62,50 @@ final class ArticleRepository extends ServiceEntityRepository implements Slugged
                 ->getQuery()
                 ->getResult(),
         );
+    }
+
+    /**
+     * @return list<Article> published articles in a section, newest first
+     */
+    public function findPublishedByCategory(Category $category, int $limit = 20, int $offset = 0): array
+    {
+        return array_values(
+            $this->publishedQuery()
+                ->andWhere(self::ALIAS.'.category = :category')
+                ->setParameter('category', $category)
+                ->setMaxResults($limit)
+                ->setFirstResult($offset)
+                ->getQuery()
+                ->getResult(),
+        );
+    }
+
+    /**
+     * @return list<Article> published articles carrying a label, newest first
+     */
+    public function findPublishedByTag(Tag $tag, int $limit = 20, int $offset = 0): array
+    {
+        return array_values(
+            $this->publishedQuery()
+                ->innerJoin(self::ALIAS.'.tags', 'tag')
+                ->andWhere('tag = :tag')
+                ->setParameter('tag', $tag)
+                ->setMaxResults($limit)
+                ->setFirstResult($offset)
+                ->getQuery()
+                ->getResult(),
+        );
+    }
+
+    /**
+     * Every article in a section, in any status — what CategoryDeleter has to
+     * detach before the section goes.
+     *
+     * @return list<Article>
+     */
+    public function findByCategory(Category $category): array
+    {
+        return array_values($this->findBy(['category' => $category]));
     }
 
     public function countPublished(): int

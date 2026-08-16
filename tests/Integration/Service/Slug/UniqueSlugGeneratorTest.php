@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Service\Slug;
 
-use App\Entity\PublishableContent;
+use App\Entity\Slug;
 use App\Factory\ArticleFactory;
 use App\Factory\PageFactory;
 use App\Repository\ArticleRepository;
@@ -118,7 +118,7 @@ final class UniqueSlugGeneratorTest extends KernelTestCase
     {
         $slug = $this->generator->generate('!!!', $this->articles);
 
-        self::assertMatchesRegularExpression(PublishableContent::SLUG_PATTERN, $slug);
+        self::assertMatchesRegularExpression(Slug::PATTERN, $slug);
     }
 
     /**
@@ -129,16 +129,16 @@ final class UniqueSlugGeneratorTest extends KernelTestCase
     {
         ArticleFactory::createOne(['slug' => 'hello-world']);
 
-        foreach (['Hello, World!', 'Žltý kôň', 'Symfony 8.1 release', '日本語'] as $title) {
+        foreach (['Hello, World!', 'Ĺ˝ltĂ˝ kĂ´Ĺ', 'Symfony 8.1 release', 'ć—Ąćś¬čŞž'] as $title) {
             self::assertMatchesRegularExpression(
-                PublishableContent::SLUG_PATTERN,
+                Slug::PATTERN,
                 $this->generator->generate($title, $this->articles),
             );
         }
     }
 
     /**
-     * The generated address is free at the moment it is handed back — which is
+     * The generated address is free at the moment it is handed back â€” which is
      * the whole promise, and all a single process can promise.
      */
     public function testTheResultIsNotTakenAtTheMomentItIsReturned(): void
