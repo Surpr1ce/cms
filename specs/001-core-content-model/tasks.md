@@ -315,14 +315,19 @@ archive the content and attempt again.
 
 ### Tests for User Story 6
 
-- [ ] T069 [P] [US6] Write `tests/Integration/Service/Account/UserDeleterTest.php` — deletion is refused for an author of articles and for an owner of files; **still refused when every one of their articles is archived**, because archiving is not a release of ownership; succeeds for an account owning nothing (FR-028, spec Edge Cases)
+- [x] T069 [P] [US6] Write `tests/Integration/Service/Account/UserDeleterTest.php` — deletion is refused for an author of articles and for an owner of files; **still refused when every one of their articles is archived**, because archiving is not a release of ownership; succeeds for an account owning nothing (FR-028, spec Edge Cases)
 
 ### Implementation for User Story 6
 
-- [ ] T070 [US6] Add `countByAuthor(User $author)` to `ArticleRepository` and confirm `countUploadedBy()` on `MediaRepository` counts regardless of content status
-- [ ] T071 [US6] Create `src/Service/Account/UserDeleter.php` throwing `UserStillOwnsContent` carrying the counts, so a future admin screen can say what is blocking rather than only that something is
+- [x] T070 [US6] Add `countByAuthor(User $author)` to `ArticleRepository` and confirm `countUploadedBy()` on `MediaRepository` counts regardless of content status — both landed earlier, in phases 3 and 7, and are proven here
+- [x] T071 [US6] Create `src/Service/Account/UserDeleter.php` throwing `UserStillOwnsContent` carrying the counts, so a future admin screen can say what is blocking rather than only that something is
 
-**Checkpoint**: all six user stories are independently functional and proven
+**Added beyond the task**: `canBeDeleted()`, so an administration screen can decide
+whether to offer the action at all. Offering a button that always fails is worse
+than not offering it.
+
+**Checkpoint**: reached. `composer qa` passes — 279 tests, 586 assertions. All six
+user stories are independently functional and proven.
 
 ---
 
