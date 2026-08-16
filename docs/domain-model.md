@@ -111,6 +111,31 @@ An uploaded file.
 The stored filename is always generated. Trusting a client-supplied name is how
 path traversal and executable-extension uploads happen.
 
+## Addresses
+
+A slug is derived from the title, made unique within its entity type, and stops
+changing once the content has been published. Three pieces enforce that, and it
+is worth knowing which does what:
+
+| Piece | Enforces |
+| --- | --- |
+| `SlugGenerator` | URL-safety; a usable address for any title, including one that reduces to nothing |
+| `UniqueSlugGenerator` | Freedom from collision within one entity type, by appending `-2`, `-3`, … |
+| `PublishableContent::assignSlug()` | The freeze after publication, and the shape of the address |
+| The unique index on each `slug` column | The race two concurrent generators cannot see |
+
+**A known gap.** The entity can guarantee that a slug *stops changing* after
+publication, because that decision needs no other row. It cannot guarantee that
+a slug is *regenerated* when a draft's title changes, because uniqueness needs
+the database — that is `UniqueSlugGenerator`'s job, and a caller that sets a
+title without going through it leaves the slug stale.
+
+This is accepted while the only callers are tests and fixtures. It closes when
+the administration layer gives content editing a single entry point. It is
+recorded here, and in
+[ADR 6](adr/0006-generate-slugs-in-a-service-and-freeze-them-at-publication.md),
+rather than left for someone to discover from behaviour.
+
 ## Invariants
 
 These hold regardless of which delivery mechanism is in use, and each one is

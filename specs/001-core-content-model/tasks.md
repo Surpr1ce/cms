@@ -166,16 +166,23 @@ published one.
 
 ### Tests for User Story 2
 
-- [ ] T032 [P] [US2] Write `tests/Unit/Entity/SlugFreezeTest.php` — `assignSlug()` succeeds on a draft, and throws `SlugIsFrozen` once `publishedAt` is set, including after the content has been unpublished again (FR-012)
-- [ ] T033 [P] [US2] Write `tests/Integration/Service/Slug/UniqueSlugGeneratorTest.php` — a second article with the same title gets `hello-world-2`, a third `hello-world-3`; a **page** titled the same as an article may also be `hello-world`, because uniqueness is per kind (FR-010, FR-011, US2 scenarios 3 and 4)
+- [x] T032 [P] [US2] Write `tests/Unit/Entity/SlugFreezeTest.php` — `assignSlug()` succeeds on a draft, and throws `SlugIsFrozen` once `publishedAt` is set, including after the content has been unpublished again (FR-012)
+- [x] T033 [P] [US2] Write `tests/Integration/Service/Slug/UniqueSlugGeneratorTest.php` — a second article with the same title gets `hello-world-2`, a third `hello-world-3`; a **page** titled the same as an article may also be `hello-world`, because uniqueness is per kind (FR-010, FR-011, US2 scenarios 3 and 4)
 
 ### Implementation for User Story 2
 
-- [ ] T034 [US2] Create `src/Service/Slug/UniqueSlugGenerator.php` — takes `SlugGenerator` in the constructor and a `SluggedRepository` per call, appending `-2`, `-3`, … until the slug is free
-- [ ] T035 [US2] Implement `SluggedRepository::existsWithSlug()` on `ArticleRepository` and `PageRepository`, declaring the interface on both
-- [ ] T036 [US2] Add `assignSlug()` with the `SlugIsFrozen` guard to `src/Entity/PublishableContent.php`, and confirm no public `setSlug()` exists anywhere
-- [ ] T037 [US2] Add the slug validation attributes to `Article` and `Page` — `UniqueEntity('slug')` and the `Regex('/^[a-z0-9]+(?:-[a-z0-9]+)*$/')` that is FR-009 in machine-readable form
-- [ ] T038 [US2] Record in `docs/domain-model.md` that the slug **freeze** is enforced by the entity while **regeneration** on a title change is a service behaviour, so a caller bypassing the service leaves the slug stale — the gap identified in `research.md` decision 5, which closes when the admin layer gives editing a single entry point
+- [x] T034 [US2] Create `src/Service/Slug/UniqueSlugGenerator.php` — takes `SlugGenerator` in the constructor and a `SluggedRepository` per call, appending `-2`, `-3`, … until the slug is free
+- [x] T035 [US2] Implement `SluggedRepository::existsWithSlug()` on `ArticleRepository` and `PageRepository`, declaring the interface on both — done ahead of schedule in Phase 3, because both repositories were being written anyway
+- [x] T036 [US2] Add `assignSlug()` with the `SlugIsFrozen` guard to `src/Entity/PublishableContent.php`, and confirm no public `setSlug()` exists anywhere — also done in Phase 3, since the address became a constructor argument there
+- [x] T037 [US2] Add the slug validation attributes to `Article` and `Page` — `UniqueEntity('slug')` and the `Regex` that is FR-009 in machine-readable form. The expression lives in `PublishableContent::SLUG_PATTERN` and is enforced twice: as a validation constraint for a user interface to report, and as a constructor guard that makes a malformed address unrepresentable
+- [x] T038 [US2] Record in `docs/domain-model.md` that the slug **freeze** is enforced by the entity while **regeneration** on a title change is a service behaviour, so a caller bypassing the service leaves the slug stale — the gap identified in `research.md` decision 5, which closes when the admin layer gives editing a single entry point
+
+**Note on `UniqueSlugGenerator` in the test**: it is constructed directly rather
+than fetched from the container, because nothing consumes it yet and the compiler
+removes unused private services. The wiring becomes worth asserting when the
+admin layer calls it; asserting it now would test the container, not the code.
+
+**Checkpoint**: reached. `composer qa` passes — 175 tests, 280 assertions.
 
 **Checkpoint**: addresses behave as specified for both articles and pages
 
