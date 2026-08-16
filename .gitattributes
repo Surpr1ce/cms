@@ -1,0 +1,19 @@
+# Normalise line endings so coding-style checks behave identically on Windows
+# development machines and Linux CI runners.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+
+# Keep generated and vendored assets out of diffs and language statistics.
+/assets/vendor/** linguist-vendored
+/public/assets/** linguist-generated
+composer.lock -diff
+symfony.lock -diff
