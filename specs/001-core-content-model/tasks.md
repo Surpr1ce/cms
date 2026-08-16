@@ -226,9 +226,8 @@ select entity through identification variables without choosing at least one roo
 entity alias". Rewritten with `Tag` as the root and `MEMBER OF` in the join
 condition. The test caught it, which is the point of writing it first.
 
-**Checkpoint**: reached. `composer qa` passes — 202 tests, 376 assertions.
-
-**Checkpoint**: taxonomy works and deleting any part of it destroys nothing
+**Checkpoint**: reached. `composer qa` passes — 202 tests, 376 assertions. Taxonomy
+works and deleting any part of it destroys nothing.
 
 ---
 
@@ -242,19 +241,25 @@ the forbidden deletions and the circular parent.
 
 ### Tests for User Story 4
 
-- [ ] T051 [P] [US4] Write `tests/Unit/Entity/PageHierarchyTest.php` — a page cannot become its own ancestor at any depth (`HierarchyWouldBeCircular`); `hasChildren()` reflects the association
-- [ ] T052 [P] [US4] Write `tests/Integration/Service/Content/PageDeleterTest.php` — deleting a page with children throws `PageStillHasChildren` and removes nothing; deleting a leaf succeeds (FR-018)
+- [x] T051 [P] [US4] Write `tests/Unit/Entity/PageHierarchyTest.php` — a page cannot become its own ancestor at any depth (`HierarchyWouldBeCircular`); `hasChildren()` reflects the association
+- [x] T052 [P] [US4] Write `tests/Integration/Service/Content/PageDeleterTest.php` — deleting a page with children throws `PageStillHasChildren` and removes nothing; deleting a leaf succeeds (FR-018)
 
 ### Implementation for User Story 4
 
-- [ ] T053 [US4] Add `parent` (self-referencing, `ON DELETE RESTRICT`), `menuOrder`, `getChildren()` and `hasChildren()` to `src/Entity/Page.php`, with the circularity walk in `setParent()`
-- [ ] T054 [US4] Add `findPublishedChildrenOf(?Page $parent)` — ordered by `menu_order` — and `countChildrenOf()` to `src/Repository/PageRepository.php`
-- [ ] T055 [US4] Create `src/Service/Content/PageDeleter.php` throwing `PageStillHasChildren` when the page still has any
-- [ ] T056 [US4] Add a `childOf()` state to `src/Factory/PageFactory.php`
-- [ ] T057 [US4] Generate the migration adding `page.parent_id` (`ON DELETE RESTRICT`), `page.menu_order` defaulting to `0`, and the `(parent_id, menu_order)` index
-- [ ] T058 [US4] Extend `tests/Integration/Repository/PageRepositoryTest.php` — sibling pages come back in `menu_order`, and only published ones (US4 scenario 3)
+- [x] T053 [US4] Add `parent` (self-referencing, `ON DELETE RESTRICT`), `menuOrder`, `getChildren()` and `hasChildren()` to `src/Entity/Page.php`, with the circularity walk in `setParent()`
+- [x] T054 [US4] Add `findPublishedChildrenOf(?Page $parent)` — ordered by `menu_order` — and `countChildrenOf()` to `src/Repository/PageRepository.php`
+- [x] T055 [US4] Create `src/Service/Content/PageDeleter.php` throwing `PageStillHasChildren` when the page still has any
+- [x] T056 [US4] Add a `childOf()` state to `src/Factory/PageFactory.php`
+- [x] T057 [US4] Generate the migration adding `page.parent_id` (`ON DELETE RESTRICT`), `page.menu_order` defaulting to `0`, and the `(parent_id, menu_order)` index
+- [x] T058 [US4] Extend `tests/Integration/Repository/PageRepositoryTest.php` — sibling pages come back in `menu_order`, and only published ones (US4 scenario 3)
 
-**Checkpoint**: the page tree and the menu ordering behave as specified
+**Beyond what the task list asked for**: `PageDeleterTest` also asserts that the
+database refuses the deletion for a caller that skips the service entirely. That
+is the point of enforcing the rule twice, and asserting only the service half
+would leave the more important guarantee untested.
+
+**Checkpoint**: reached. `composer qa` passes — 223 tests, 431 assertions. The
+page tree and the menu ordering behave as specified.
 
 ---
 

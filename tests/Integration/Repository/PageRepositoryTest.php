@@ -98,4 +98,53 @@ final class PageRepositoryTest extends KernelTestCase
         self::assertTrue($this->repository->existsWithSlug('taken-page'));
         self::assertFalse($this->repository->existsWithSlug('free-page'));
     }
+
+    /**
+     * US4 scenario 3: siblings come back in their explicit menu position, not in
+     * whatever order the rows happen to be stored.
+     */
+    public function testSiblingsComeBackInMenuOrder(): void
+    {
+        $parent = PageFactory::new()->published()->create(['slug' => 'about-us']);
+
+        PageFactory::new()->published()->childOf($parent)->create(['slug' => 'third', 'menuOrder' => 30]);
+        PageFactory::new()->published()->childOf($parent)->create(['slug' => 'first', 'menuOrder' => 10]);
+        PageFactory::new()->published()->childOf($parent)->create(['slug' => 'second', 'menuOrder' => 20]);
+
+        self::assertSame(
+            ['first', 'second', 'third'],
+            array_map(
+                static fn (Page $page): string => $page->getSlug(),
+                $this->repository->findPublishedChildrenOf($parent),
+            ),
+        );
+    }
+
+    public function testTheMenuShowsOnlyPublishedPages(): void
+    {
+        $parent = PageFactory::new()->published()->create(['slug' => 'about-us']);
+
+        PageFactory::new()->published()->childOf($parent)->many(2)->create();
+        PageFactory::new()->childOf($parent)->many(3)->create();
+        PageFactory::new()->publishedThenArchived()->childOf($parent)->create();
+
+        self::assertCount(2, $this->repository->findPublishedChildrenOf($parent));
+    }
+
+    public function testPassingNullAsksForTheTopLevel(): void
+    {
+        $parent = PageFactory::new()->published()->create(['slug' => 'about-us']);
+        PageFactory::new()->published()->childOf($parent)->many(2)->create();
+
+        self::assertCount(1, $this->repository->findPublishedChildrenOf(null));
+    }
+
+    public function testItCountsChildrenWhateverTheirStatus(): void
+    {
+        $parent = PageFactory::createOne(['slug' => 'about-us']);
+        PageFactory::new()->childOf($parent)->many(2)->create();
+        PageFactory::new()->published()->childOf($parent)->create();
+
+        self::assertSame(3, $this->repository->countChildrenOf($parent));
+    }
 }

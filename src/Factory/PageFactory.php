@@ -23,6 +23,13 @@ final class PageFactory extends PersistentObjectFactory
         return $this;
     }
 
+    public function childOf(Page $parent): static
+    {
+        return $this->afterInstantiate(static function (Page $page) use ($parent): void {
+            $page->setParent($parent);
+        });
+    }
+
     public function published(): static
     {
         return $this->afterInstantiate(static function (Page $page): void {
