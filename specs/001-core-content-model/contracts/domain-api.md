@@ -174,15 +174,26 @@ final class Media
     public function getUploadedAt(): \DateTimeImmutable;
 }
 
-final class User implements UserInterface, PasswordAuthenticatedUserInterface
+class User implements PasswordAuthenticatedUserInterface, UserInterface
 {
-    public function __construct(string $email, string $displayName, \DateTimeImmutable $now);
+    public const string ROLE_ADMIN = 'ROLE_ADMIN';
+    public const string ROLE_EDITOR = 'ROLE_EDITOR';
+    public const string ROLE_AUTHOR = 'ROLE_AUTHOR';
+
+    /** @throws \InvalidArgumentException on an empty email address */
+    public function __construct(
+        string $email,
+        string $displayName,
+        \DateTimeImmutable $createdAt,
+    );
 
     public function getId(): ?int;
     public function getEmail(): string;
+    /** @throws \InvalidArgumentException on an empty email address */
     public function setEmail(string $email): void;
-    public function getUserIdentifier(): string;          // the email
-    public function getPassword(): string;                // hash
+    /** @return non-empty-string the email */
+    public function getUserIdentifier(): string;
+    public function getPassword(): string;                // hash, '' until one is set
     public function setPassword(string $hashedPassword): void;
     public function getDisplayName(): string;
     public function setDisplayName(string $displayName): void;
@@ -191,9 +202,21 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
     /** @param list<string> $roles */
     public function setRoles(array $roles): void;
     public function getCreatedAt(): \DateTimeImmutable;
-    public function eraseCredentials(): void;             // no-op; nothing plain-text is held
 }
 ```
+
+Three details settled during implementation, recorded here rather than left for
+the next reader to discover:
+
+- **There is no `eraseCredentials()`.** Symfony 8 removed it from `UserInterface`,
+  and implementing a method the framework no longer calls would be theatre.
+  Nothing plain-text is ever held on the object, so there was never anything to
+  erase.
+- **The constructor parameter is `$createdAt`, not `$now`**, and it is promoted.
+  The name describes what is stored rather than when the call happened, which is
+  the more useful of the two at the call site.
+- **`User` is not `final`.** Doctrine needs to subclass entities for lazy loading.
+  Every other class in this feature that can be final, is.
 
 ## Repositories — `App\Repository`
 
@@ -324,9 +347,15 @@ final class UserDeleter
 
 ## Exceptions — `App\Exception`
 
-All extend `App\Exception\DomainException`, which extends PHP's
-`\DomainException`. A caller may catch the base class to mean "a domain rule
-refused this" without enumerating every case.
+All extend `App\Exception\DomainException`, which extends `\RuntimeException`. A
+caller may catch the base class to mean "a domain rule refused this" without
+enumerating every case.
+
+The parent is `\RuntimeException` rather than PHP's own `\DomainException`
+despite the name: every refusal here depends on runtime state — what an account
+owns, what status a piece of content is in — rather than on a programming
+mistake, and `\RuntimeException` is the accurate signal for that. The class name
+describes the layer it belongs to, not its PHP ancestry.
 
 | Exception | Thrown when |
 | --- | --- |

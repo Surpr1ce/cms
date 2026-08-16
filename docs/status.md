@@ -22,13 +22,16 @@ as such at the top of the file.
 | Spec Kit + project subagents | Installed |
 | Conventions (`CLAUDE.md`) and ADRs 1–4 | Written |
 | PostgreSQL 16 on the development machine | Installed and running, connection verified |
-| Feature 001 (`specs/001-core-content-model/`) | Specified, planned, tasks generated (79 tasks across 9 phases); no code written yet |
+| Feature 001 (`specs/001-core-content-model/`) | Specified, planned, 79 tasks generated; phases 1–2 of 9 built and passing |
+| `User` entity, repository, factory; `ContentStatus`; domain exceptions; `SlugGenerator` | Implemented, `composer qa` green |
+| First migration (`app_user`, `messenger_messages`) | Generated and applied to dev and test |
+| Test suite | 66 tests, 90 assertions, passing. Unit and integration only — no functional tests, because no routes exist yet |
 
 ## Not done
 
 | Area | State |
 | --- | --- |
-| Entities, repositories, migrations | Specified, not started |
+| `Article`, `Page`, `Category`, `Tag`, `Media` entities | Specified, not started |
 | Fixtures and factories | Not started |
 | Security configuration, voters, login | Not started |
 | Admin screens (EasyAdmin and hand-written) | Not started |

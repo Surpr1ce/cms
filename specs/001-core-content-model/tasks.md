@@ -77,21 +77,38 @@ at. Nothing here is story-specific.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T006 Create the domain exception hierarchy in `src/Exception/`: `DomainException` (extends `\DomainException`) plus `InvalidStatusTransition`, `ContentNotPublishable`, `SlugIsFrozen`, `MediaMissingAltText`, `HierarchyWouldBeCircular`, `PageStillHasChildren`, `UserStillOwnsContent`, `UnsupportedMediaType` — each carrying its context as typed accessors, never only a message string (see `contracts/domain-api.md`)
-- [ ] T007 [P] Create `src/Entity/ContentStatus.php` — backed enum `draft|published|archived` with `allowedTransitions()`, `canTransitionTo()` and `label()` per `data-model.md`
-- [ ] T008 [P] Create `src/Repository/SluggedRepository.php` — one-method interface `existsWithSlug(string $slug): bool`
-- [ ] T009 [P] Create `src/Service/Slug/SlugGenerator.php` — pure, `AsciiSlugger`-based, lowercased and hyphen-trimmed, falling back to a short random token when a title yields nothing usable. No database, no container state
-- [ ] T010 Create `src/Entity/User.php` — table `app_user`, implementing `UserInterface` and `PasswordAuthenticatedUserInterface`, `roles` as `list<string>` with `ROLE_USER` always appended on read, `?int $id = null`, validation attributes per `data-model.md`
-- [ ] T011 Create `src/Repository/UserRepository.php` with `findOneByEmail(): ?User`
-- [ ] T012 Create `src/Factory/UserFactory.php` (Foundry 2 class-based) with `admin()`, `editor()` and `author()` states
-- [ ] T013 Generate the first migration with `php bin/console doctrine:migrations:diff` — creates `app_user` with the unique index on `email`. Do not hand-edit the result
-- [ ] T014 Apply the migration to the dev and test databases and confirm `php bin/console doctrine:schema:validate` reports both mapping and schema in sync
-- [ ] T015 [P] Write `tests/Unit/Entity/ContentStatusTest.php` — assert every allowed transition in `data-model.md` is allowed and that every other pair is refused
-- [ ] T016 [P] Write `tests/Unit/Service/Slug/SlugGeneratorTest.php` — `Hello, World!` → `hello-world`; accented and non-Latin titles produce only `[a-z0-9-]`; a title of pure punctuation produces a non-empty slug; output always matches `/^[a-z0-9]+(?:-[a-z0-9]+)*$/` (FR-009, SC-004)
-- [ ] T017 [P] Write `tests/Unit/Entity/UserTest.php` — `getRoles()` always contains `ROLE_USER` and deduplicates; `getUserIdentifier()` returns the email; `eraseCredentials()` leaves the hash intact
-- [ ] T018 Write `tests/Integration/Repository/UserRepositoryTest.php` — `findOneByEmail()` hit and miss, and a duplicate email is refused by the unique constraint (FR-025)
+- [x] T006 Create the domain exception hierarchy in `src/Exception/`: `DomainException` plus `InvalidStatusTransition`, `ContentNotPublishable`, `SlugIsFrozen`, `MediaMissingAltText`, `HierarchyWouldBeCircular`, `PageStillHasChildren`, `UserStillOwnsContent`, `UnsupportedMediaType` — each carrying its context as typed accessors, never only a message string (see `contracts/domain-api.md`)
+- [x] T007 [P] Create `src/Entity/ContentStatus.php` — backed enum `draft|published|archived` with `allowedTransitions()`, `canTransitionTo()` and `label()` per `data-model.md`
+- [x] T008 [P] Create `src/Repository/SluggedRepository.php` — one-method interface `existsWithSlug(string $slug): bool`
+- [x] T009 [P] Create `src/Service/Slug/SlugGenerator.php` — pure, `AsciiSlugger`-based, lowercased and hyphen-trimmed, falling back to a short random token when a title yields nothing usable. No database, no container state
+- [x] T010 Create `src/Entity/User.php` — table `app_user`, implementing `UserInterface` and `PasswordAuthenticatedUserInterface`, `roles` as `list<string>` with `ROLE_USER` always appended on read, `?int $id = null`, validation attributes per `data-model.md`
+- [x] T011 Create `src/Repository/UserRepository.php` with `findOneByEmail(): ?User`
+- [x] T012 Create `src/Factory/UserFactory.php` (Foundry 2 class-based) with `admin()`, `editor()` and `author()` states
+- [x] T013 Generate the first migration with `php bin/console doctrine:migrations:diff` — creates `app_user` with the unique index on `email`. Do not hand-edit the result
+- [x] T014 Apply the migration to the dev and test databases and confirm `php bin/console doctrine:schema:validate` reports both mapping and schema in sync
+- [x] T015 [P] Write `tests/Unit/Entity/ContentStatusTest.php` — assert every allowed transition in `data-model.md` is allowed and that every other pair is refused
+- [x] T016 [P] Write `tests/Unit/Service/Slug/SlugGeneratorTest.php` — `Hello, World!` → `hello-world`; accented and non-Latin titles produce only `[a-z0-9-]`; a title of pure punctuation produces a non-empty slug; output always matches `/^[a-z0-9]+(?:-[a-z0-9]+)*$/` (FR-009, SC-004)
+- [x] T017 [P] Write `tests/Unit/Entity/UserTest.php` — `getRoles()` always contains `ROLE_USER` and deduplicates; `getUserIdentifier()` returns the email
+- [x] T018 Write `tests/Integration/Repository/UserRepositoryTest.php` — `findOneByEmail()` hit and miss, and a duplicate email is refused by the unique constraint (FR-025)
 
-**Checkpoint**: accounts exist and are proven; user story work can begin
+**Three corrections to this list, made while doing the work rather than after it:**
+
+- T006 planned `DomainException` as a subclass of PHP's `\DomainException`. It
+  extends `\RuntimeException` instead. Every refusal here depends on runtime
+  state — what an account owns, what status content is in — not on a programming
+  mistake, and `\RuntimeException` is the accurate signal for that.
+- T017 planned an assertion that `eraseCredentials()` leaves the hash intact.
+  Symfony 8 removed that method from `UserInterface`, so there is nothing to
+  assert; the assertion was dropped rather than a dead method written to satisfy
+  it.
+- The `User` constructor takes `$createdAt`, not `$now`, and `displayName` and
+  `createdAt` are promoted. This came from Rector, which the quality gate runs in
+  dry-run mode; the promotion was accepted and reformatted by hand rather than
+  the rule being excluded.
+
+**Checkpoint**: reached. `composer qa` passes in full — style clean, Rector clean,
+PHPStan level max reports no errors, 66 tests and 90 assertions green. Accounts
+exist and are proven; user story work can begin.
 
 ---
 

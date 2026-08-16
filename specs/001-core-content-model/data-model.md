@@ -230,9 +230,14 @@ feature's concern.
 | `createdAt` | `created_at` | `TIMESTAMP(0)` | no | |
 
 Implements `UserInterface` and `PasswordAuthenticatedUserInterface` — see the
-judgement call recorded in `plan.md`, Constitution Check. `eraseCredentials()` is
-a no-op because no plain-text credential is ever held on the object; there is
-nothing to erase, and pretending otherwise would be theatre.
+judgement call recorded in `plan.md`, Constitution Check. There is no
+`eraseCredentials()`: Symfony 8 removed it from `UserInterface`, and no
+plain-text credential is ever held on the object, so there is nothing to erase.
+
+`password` defaults to an empty string rather than being required by the
+constructor, because Symfony's password hasher takes the user object in order to
+choose a hasher — the account has to exist before its hash can be computed. An
+empty hash matches nothing, so the intermediate state cannot authenticate.
 
 `getRoles()` returns the stored roles with `ROLE_USER` appended and duplicates
 removed, which is Symfony's expected contract. The three meaningful roles are
