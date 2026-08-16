@@ -74,10 +74,13 @@ feature.
 
 ## Known constraints
 
-- **Docker is unavailable on the development machine.** WSL2 is not installed and
-  Docker Desktop cannot start. PostgreSQL runs natively instead; see
-  [ADR 3](adr/0003-postgresql-natively-instead-of-docker.md). `compose.yaml` is
-  retained but untested on this host.
+- ~~**Docker is unavailable on the development machine.**~~ **No longer true as of
+  2026-08-17.** Docker 29.7.2 with WSL2 is installed and working, and
+  `compose.yaml` has been verified — `docker compose up -d database` reaches a
+  healthy PostgreSQL 16.15 container. Native PostgreSQL remains the default
+  because it holds the migrated databases; the compose stack is a supported
+  alternative. See [ADR 7](adr/0007-docker-is-available-after-all.md), which
+  supersedes [ADR 3](adr/0003-postgresql-natively-instead-of-docker.md).
 - **The test environment needs `.env.test.local`.** Symfony deliberately does not
   load `.env.local` when `APP_ENV=test`, so local database credentials have to be
   repeated there. The file is gitignored; CI sets `DATABASE_URL` itself.

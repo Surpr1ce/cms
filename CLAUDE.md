@@ -119,6 +119,12 @@ php bin/console doctrine:fixtures:load
 symfony serve            # or: php -S localhost:8000 -t public
 ```
 
-PostgreSQL runs natively on this machine (Docker Desktop requires WSL2, which is
-not available here). `compose.yaml` is kept for environments that do have Docker,
-and CI uses a Postgres service container.
+PostgreSQL runs natively on this machine by default. Docker is also available and
+`compose.yaml` is verified — `docker compose up -d database` works — but the
+native instance holds the migrated databases, so it stays the default. Full
+instructions for both paths are in [`docs/setup.md`](docs/setup.md); the reasoning
+is in [ADR 7](docs/adr/0007-docker-is-available-after-all.md), which supersedes
+ADR 3. CI uses a Postgres service container.
+
+`.env.test.local` is required and gitignored: Symfony does not load `.env.local`
+when `APP_ENV=test`, so the test database credentials have to be repeated there.
