@@ -5,6 +5,11 @@ import './stimulus_bootstrap.js';
  * This file will be included onto the page via the importmap() Twig function,
  * which should already be in your base.html.twig.
  */
-import './styles/app.css';
+/*
+ * The stylesheet is linked directly in base.html.twig, so importing it here
+ * would be the second way to load the same file. AssetMapper answers such an
+ * import with an empty `data:` module, which the content security policy would
+ * then have to allow as a script source — a real hole opened to load nothing.
+ */
 
 console.log('This log comes from assets/app.js - welcome to AssetMapper! 🎉');

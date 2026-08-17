@@ -151,6 +151,34 @@ over `^/admin` only asks for a content role and the CRUD controllers guard their
 own actions rather than the landing page. And the first override was on
 `delete()`, which the batch route bypasses entirely.
 
+### Feature 008 — hardening
+
+Branch `008-hardening`. The two entries this file had carried in bold since
+feature 003.
+
+| Area | State |
+| --- | --- |
+| Sign-in throttling | **Implemented.** Five attempts in fifteen minutes, counted per client address *and* per submitted handle. The sixth is refused **without the password being checked**, which is what the tests distinguish |
+| Lockout message | Says "too many", says the same thing for a known and an unknown address, and expires on its own |
+| Content security policy | **Implemented and enforced**, not report-only. No `unsafe-inline` for scripts: every inline script the application emits carries a per-response nonce the header names |
+| The generic administration screens | Mark their own scripts through `csp_nonce()` — a Twig function named to match the `{% guard function csp_nonce %}` already in EasyAdmin's templates. No bundle, no template override. See [ADR 12](adr/0012-build-the-content-security-policy-in-the-application.md) |
+| Other headers | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, on **every** response including the 404 |
+| New dependency | `symfony/rate-limiter` — one, and only for the half that cannot exist without it |
+| Removed | The importmap CDN polyfill, and a stylesheet import in `assets/app.js` that AssetMapper answered with an empty `data:` module — which would have meant allowing `data:` in `script-src` to load nothing |
+| Whole project | **735 tests, 1861 assertions, passing** |
+
+**Two defects the tests found, both about responses nobody produces.** The 404
+carried no headers at all: an error response *is* a sub-request's response, and
+guarding on `isMainRequest()` skips every one of them. And the nonce could not
+live on the request object, because Symfony pops the request off the stack before
+rendering the error page — so the value a 404 needed was unreachable at exactly
+the moment it was needed.
+
+**What you see in a browser during development is not what a reader gets.** The
+web debug toolbar appends its own nonce and `'unsafe-inline'` to the policy so
+that it can run. Every assertion about the policy is therefore in the test suite,
+which has no toolbar.
+
 ## Not done
 
 | Area | State |
@@ -163,8 +191,9 @@ own actions rather than the landing page. And the first override was on
 | Private files | Not possible. Serving applies no restriction beyond "anybody may read", because a file in a published article has to be public and the CMS has no notion of a private one |
 | Optimistic locking | **Not implemented.** Two people editing the same article: the second save wins, silently |
 | A rich-text editor | Not started, deliberately. The body is a text area containing markup, so sanitising does not depend on an editor behaving |
-| A content security policy | Not started. Worth adding as a second layer on top of sanitising, not instead of it |
-| **Rate limiting on the sign-in form** | **Not implemented.** Nothing counts how many times somebody tries the handle. Listed prominently because "the administration area is closed" invites the assumption that it is also guarded, and it is not |
+| Inline **styles** are still allowed | `style-src` keeps `unsafe-inline`, openly. The generic administration screens carry style attributes on elements this project does not author, and an attribute cannot be marked with a nonce — naming a nonce there would make a browser ignore `unsafe-inline` altogether and break those screens. A style can deface a page; a script can take a session |
+| A policy reporting endpoint | Not started. A `report-to` pointing nowhere is a comment, so the policy is enforced instead |
+| Rate limiting on anything but sign-in | Not started. The public site and the read-only API are unthrottled |
 | Registration, password reset, password change, email | Not started |
 | "Remember me", two-factor, session expiry policy | Not started |
 | Audit log of who did what | Not started |
@@ -213,6 +242,12 @@ feature.
   because it holds the migrated databases; the compose stack is a supported
   alternative. See [ADR 7](adr/0007-docker-is-available-after-all.md), which
   supersedes [ADR 3](adr/0003-postgresql-natively-instead-of-docker.md).
+- **A non-debug test container is not rebuilt when a file changes.** Symfony only
+  checks for changes when debugging, and two test classes boot with debug off —
+  the ones asserting about 404 pages. A change they should see can therefore be
+  invisible to them while every other test passes. `php -d memory_limit=1G
+  bin/console cache:clear --env=test --no-debug` is the fix, and the assertion in
+  `SecurityHeadersTest` that this bit says so in its failure message.
 - **The test environment needs `.env.test.local`.** Symfony deliberately does not
   load `.env.local` when `APP_ENV=test`, so local database credentials have to be
   repeated there. The file is gitignored; CI sets `DATABASE_URL` itself.

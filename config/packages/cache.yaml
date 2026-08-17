@@ -17,3 +17,30 @@ framework:
         # Namespaced pools use the above "app" backend by default
         #pools:
             #my.dedicated.cache: null
+
+when@test:
+    services:
+        # In memory, so a sign-in limit lasts exactly one kernel.
+        #
+        # The counters behind `login_throttling` are ordinary cache entries, and
+        # on the filesystem they outlive the test that created them. Every test
+        # that signs in was contributing to one shared allowance, and the suite
+        # began failing in different places depending on the order it ran in.
+        # That accumulation is a real property of the limiter and the wrong one
+        # to inherit here: a test is one scenario, and the attempts of the
+        # previous one are not part of it.
+        #
+        # Declared as a plain service rather than through `framework.cache.pools`
+        # deliberately. A pool built on `cache.adapter.array` carries the
+        # `kernel.reset` tag, and Symfony resets tagged services between
+        # requests — which would empty the counters between one attempt and the
+        # next and leave no limit reachable at all. Untagged, it lasts as long
+        # as the container does.
+        #
+        # A browser rebuilds the kernel between requests, so this still resets
+        # per request everywhere else. The one place that needs a limit to
+        # accumulate — SignInThrottlingTest — turns that rebuild off, and is
+        # therefore the only test that can see throttling at all.
+        cache.rate_limiter:
+            class: Symfony\Component\Cache\Adapter\ArrayAdapter
+            public: true

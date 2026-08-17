@@ -125,11 +125,29 @@ final class ErrorPageTest extends WebTestCase
     public function testTheNotFoundPageIsTheSameWhicheverAddressMissed(): void
     {
         $this->client->request('GET', '/nothing-here');
-        $first = (string) $this->client->getResponse()->getContent();
+        $first = $this->bodyWithoutTheNonce();
 
         $this->client->request('GET', '/articles/nothing-here-either');
-        $second = (string) $this->client->getResponse()->getContent();
+        $second = $this->bodyWithoutTheNonce();
 
         self::assertSame($first, $second);
+    }
+
+    /**
+     * The response body, with the content security policy's nonce blanked out.
+     *
+     * Two responses can no longer be identical byte for byte: feature 008 gives
+     * every response a fresh nonce, on purpose, and a value that repeated would
+     * be a value an attacker could reuse. Blanking exactly that one value keeps
+     * what this comparison is for — that nothing else about the two pages
+     * differs — while allowing the one difference that is meant to be there.
+     */
+    private function bodyWithoutTheNonce(): string
+    {
+        return (string) preg_replace(
+            '/nonce="[^"]*"/',
+            'nonce="…"',
+            (string) $this->client->getResponse()->getContent(),
+        );
     }
 }

@@ -126,11 +126,11 @@ final class UnpublishedContentIsInvisibleTest extends WebTestCase
 
         $this->client->request('GET', '/articles/a-draft');
         $draftStatus = $this->client->getResponse()->getStatusCode();
-        $draftBody = (string) $this->client->getResponse()->getContent();
+        $draftBody = $this->bodyWithoutTheNonce();
 
         $this->client->request('GET', '/articles/nothing-here-at-all');
         $missingStatus = $this->client->getResponse()->getStatusCode();
-        $missingBody = (string) $this->client->getResponse()->getContent();
+        $missingBody = $this->bodyWithoutTheNonce();
 
         self::assertSame($missingStatus, $draftStatus);
         self::assertSame($missingBody, $draftBody);
@@ -141,10 +141,10 @@ final class UnpublishedContentIsInvisibleTest extends WebTestCase
         PageFactory::createOne(['slug' => 'a-draft-page']);
 
         $this->client->request('GET', '/a-draft-page');
-        $draftBody = (string) $this->client->getResponse()->getContent();
+        $draftBody = $this->bodyWithoutTheNonce();
 
         $this->client->request('GET', '/nothing-here-at-all');
-        $missingBody = (string) $this->client->getResponse()->getContent();
+        $missingBody = $this->bodyWithoutTheNonce();
 
         self::assertSame($missingBody, $draftBody);
     }
@@ -253,6 +253,24 @@ final class UnpublishedContentIsInvisibleTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertStringNotContainsString('Hidden parent', (string) $this->client->getResponse()->getContent());
+    }
+
+    /**
+     * The response body, with the content security policy's nonce blanked out.
+     *
+     * Two responses can no longer be identical byte for byte: feature 008 gives
+     * every response a fresh nonce, on purpose, and a value that repeated would
+     * be a value an attacker could reuse. Blanking exactly that one value keeps
+     * what these comparisons are for — that nothing else about the two pages
+     * differs — while allowing the one difference that is meant to be there.
+     */
+    private function bodyWithoutTheNonce(): string
+    {
+        return (string) preg_replace(
+            '/nonce="[^"]*"/',
+            'nonce="…"',
+            (string) $this->client->getResponse()->getContent(),
+        );
     }
 
     private function persist(): void

@@ -5,6 +5,14 @@ framework:
             - assets/
         missing_import_mode: strict
 
+        # Off, deliberately. The polyfill is fetched from a CDN, and a CMS that
+        # serves its own assets from its own origin should not make a reader's
+        # browser talk to a third party — nor should its content security policy
+        # have to name one to allow it. Import maps are supported by every
+        # browser released since early 2023; the cost is that anything older
+        # loads no JavaScript, and every page here works without it.
+        importmap_polyfill: false
+
 when@prod:
     framework:
         asset_mapper:
