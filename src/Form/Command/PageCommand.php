@@ -35,9 +35,17 @@ final class PageCommand
 
     public ?Media $featuredImage = null;
 
+    /**
+     * The version the form was opened on. See {@see ArticleCommand::$version} —
+     * the reasoning is identical, which is what makes it right that the version
+     * itself lives on the shared superclass.
+     */
+    public ?int $version = null;
+
     public static function from(Page $page): self
     {
         $command = new self();
+        $command->version = $page->getVersion();
         $command->title = $page->getTitle();
         $command->excerpt = $page->getExcerpt();
         $command->content = $page->getContent();

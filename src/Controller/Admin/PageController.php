@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\Page;
+use App\Exception\ContentWasChangedElsewhere;
 use App\Exception\DomainException;
 use App\Exception\PageStillHasChildren;
 use App\Form\Command\PageCommand;
@@ -83,12 +84,21 @@ final class PageController extends AbstractController
         $form = $this->createForm(PageType::class, $command, ['editing' => $page->getId()]);
         $form->handleRequest($request);
 
+        $status = Response::HTTP_OK;
+
         if ($form->isSubmitted() && $form->isValid()) {
             try {
                 $this->editor->update($command, $page);
                 $this->addFlash('success', 'Saved.');
 
                 return $this->redirectToRoute('admin_page_edit', ['id' => $page->getId()]);
+            } catch (ContentWasChangedElsewhere $conflict) {
+                // Caught ahead of the general case only to answer with a status
+                // that says what happened. The handling is otherwise identical:
+                // the form comes back holding what was submitted, because a
+                // redirect would discard the typing this refusal protects.
+                $this->addFlash('error', $conflict->getMessage());
+                $status = Response::HTTP_CONFLICT;
             } catch (DomainException $refusal) {
                 // A cycle in the page tree, most likely. The entity refuses it
                 // and says why; the form comes back rather than an error page.
@@ -96,7 +106,11 @@ final class PageController extends AbstractController
             }
         }
 
-        return $this->render('admin/page/form.html.twig', ['form' => $form, 'page' => $page]);
+        return $this->render(
+            'admin/page/form.html.twig',
+            ['form' => $form, 'page' => $page],
+            new Response(status: $status),
+        );
     }
 
     #[Route('/{id}/{transition}', name: 'admin_page_transition', requirements: [

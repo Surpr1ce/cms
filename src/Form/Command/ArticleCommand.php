@@ -47,9 +47,21 @@ final class ArticleCommand
 
     public ?Media $featuredImage = null;
 
+    /**
+     * The version the form was opened on, carried back so that saving can ask
+     * whether it is still current.
+     *
+     * Null on creation, where there is nothing to conflict with — and null again
+     * when a submission arrives without one, which is refused rather than
+     * treated as current. A value that travels through a browser is under
+     * somebody else's control, and "absent" is the easiest version to forge.
+     */
+    public ?int $version = null;
+
     public static function from(Article $article): self
     {
         $command = new self();
+        $command->version = $article->getVersion();
         $command->title = $article->getTitle();
         $command->excerpt = $article->getExcerpt();
         $command->content = $article->getContent();

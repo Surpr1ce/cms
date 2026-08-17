@@ -77,6 +77,13 @@ final class PageType extends AbstractType
                     ->andWhere('media.altText IS NOT NULL')
                     ->orderBy('media.uploadedAt', 'DESC'),
             ])
+            // See ArticleType for why this is an IntegerType drawn through the
+            // hidden blocks rather than a HiddenType.
+            ->add('version', IntegerType::class, [
+                'block_prefix' => 'hidden',
+                'label' => false,
+                'required' => false,
+            ])
         ;
     }
 

@@ -179,6 +179,26 @@ web debug toolbar appends its own nonce and `'unsafe-inline'` to the policy so
 that it can run. Every assertion about the policy is therefore in the test suite,
 which has no toolbar.
 
+### Feature 009 — concurrent editing
+
+Branch `009-concurrent-editing`. The last entry under "known gaps" that described
+work being **destroyed** rather than merely absent.
+
+| Area | State |
+| --- | --- |
+| The rule | An article or page carries a version. The edit form carries the version it was opened on. Saving compares them and **refuses** when they differ |
+| What the second editor gets | The same screen, HTTP 409, a sentence naming what happened, and **everything they typed still in the form** — a redirect would have discarded the hour of work the refusal exists to protect |
+| What is stored | Nothing. The check runs before a single field is applied, so a refusal cannot half-write |
+| Forging | A submission with no version, or one that was never real, is refused rather than trusted. The version travels through a browser, so it is under somebody else's control |
+| Out of scope, deliberately | Creating (nothing to conflict with), publication transitions and deletion (they write a status, not a body) |
+| Ordinary editing | Unchanged. One person saving repeatedly is never refused, and no field appears on any screen |
+| Whole project | **746 tests, 1963 assertions, passing** |
+
+**Refused, not merged.** Merging two versions of prose automatically is a guess
+dressed as a feature: the result belongs to nobody and neither editor is told
+what happened to their sentences. A future feature may show a comparison; this
+one refuses and says why.
+
 ## Not done
 
 | Area | State |
@@ -189,7 +209,8 @@ which has no toolbar.
 | Image resizing, thumbnails, format conversion | Not started. Every image is served at the size it was uploaded |
 | A caching layer in front of file serving | Not started. A PHP process serves every image, which is the price of storing outside the web root and is worth measuring before optimising |
 | Private files | Not possible. Serving applies no restriction beyond "anybody may read", because a file in a published article has to be public and the CMS has no notion of a private one |
-| Optimistic locking | **Not implemented.** Two people editing the same article: the second save wins, silently |
+| Concurrent editing of **sections, labels, accounts and files** | Still last-write-wins. Feature 009 covers articles and pages, where a conflict costs an afternoon; a section is a name and a parent, and a file record a description and alternative text. Recorded rather than pretended away |
+| Showing an editor *what* changed | Not started. A refused save says somebody else changed the content; it does not show their version beside yours |
 | A rich-text editor | Not started, deliberately. The body is a text area containing markup, so sanitising does not depend on an editor behaving |
 | Inline **styles** are still allowed | `style-src` keeps `unsafe-inline`, openly. The generic administration screens carry style attributes on elements this project does not author, and an attribute cannot be marked with a nonce — naming a nonce there would make a browser ignore `unsafe-inline` altogether and break those screens. A style can deface a page; a script can take a session |
 | A policy reporting endpoint | Not started. A `report-to` pointing nowhere is a comment, so the policy is enforced instead |

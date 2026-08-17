@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Article;
 use App\Entity\User;
+use App\Exception\ContentWasChangedElsewhere;
 use App\Exception\DomainException;
 use App\Form\ArticleType;
 use App\Form\Command\ArticleCommand;
@@ -96,18 +97,30 @@ final class ArticleController extends AbstractController
         $form = $this->createForm(ArticleType::class, $command);
         $form->handleRequest($request);
 
+        $status = Response::HTTP_OK;
+
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->editor->update($command, $article);
+            try {
+                $this->editor->update($command, $article);
 
-            $this->addFlash('success', 'Saved.');
+                $this->addFlash('success', 'Saved.');
 
-            return $this->redirectToRoute('admin_article_edit', ['id' => $article->getId()]);
+                return $this->redirectToRoute('admin_article_edit', ['id' => $article->getId()]);
+            } catch (ContentWasChangedElsewhere $conflict) {
+                // Fall through to the render below rather than redirecting. A
+                // redirect would send the editor back to a form filled from
+                // storage, which is to say it would throw away the hour of
+                // typing this refusal exists to protect. The form still holds
+                // what was submitted.
+                $this->addFlash('error', $conflict->getMessage());
+                $status = Response::HTTP_CONFLICT;
+            }
         }
 
         return $this->render('admin/article/form.html.twig', [
             'form' => $form,
             'article' => $article,
-        ]);
+        ], new Response(status: $status));
     }
 
     /**

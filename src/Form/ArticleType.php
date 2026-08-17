@@ -14,6 +14,7 @@ use App\Repository\TagRepository;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -78,6 +79,21 @@ final class ArticleType extends AbstractType
                     ->createQueryBuilder('media')
                     ->andWhere('media.altText IS NOT NULL')
                     ->orderBy('media.uploadedAt', 'DESC'),
+            ])
+            // The one field on this form nobody types into. It carries the
+            // version the screen was opened on, so that saving can ask whether
+            // it is still current rather than overwriting whatever somebody else
+            // did in the meantime.
+            //
+            // An IntegerType rendered through the hidden blocks, rather than a
+            // HiddenType: the command's property is an int, and a HiddenType
+            // would submit the string "7" into it. `block_prefix` changes only
+            // how it is drawn, so `form_end()` emits a bare input with no label
+            // and no row — and a template that forgets it still gets it.
+            ->add('version', IntegerType::class, [
+                'block_prefix' => 'hidden',
+                'label' => false,
+                'required' => false,
             ])
         ;
     }
