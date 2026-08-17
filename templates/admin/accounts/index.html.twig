@@ -1,0 +1,76 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Accounts — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <p class="text-sm text-muted">
+                <a href="{{ path('admin_manage') }}" class="text-muted no-underline hover:underline">Manage</a>
+            </p>
+            <h1 class="mt-1 text-2xl font-semibold tracking-tight">Accounts</h1>
+        </div>
+
+        <a href="{{ path('admin_accounts_new') }}"
+           class="rounded bg-ink px-4 py-2 text-sm text-white no-underline hover:bg-accent">
+            New account
+        </a>
+    </div>
+
+    <p class="mt-2 max-w-prose text-muted">
+        Who may sign in, and what each of them may do. There is no public registration:
+        every account starts here.
+    </p>
+
+    <div class="mt-6 overflow-x-auto">
+        <table class="w-full border-collapse text-sm">
+            <thead>
+                <tr class="border-b border-rule text-left">
+                    <th class="py-2 pr-4 font-semibold">Email address</th>
+                    <th class="py-2 pr-4 font-semibold">Display name</th>
+                    <th class="py-2 pr-4 font-semibold">Permissions</th>
+                    <th class="py-2 font-semibold"><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in accounts %}
+                    <tr class="border-b border-rule/60">
+                        <td class="py-2 pr-4">
+                            <a href="{{ path('admin_accounts_edit', { id: account.id }) }}"
+                               class="font-medium text-ink no-underline hover:underline">{{ account.email }}</a>
+
+                            {% if account.id == app.user.id %}
+                                <span class="ml-1 text-xs text-muted">(you)</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 pr-4 text-muted">{{ account.displayName }}</td>
+                        <td class="py-2 pr-4">
+                            {#
+                               ROLE_USER is appended on read and stored nowhere,
+                               so showing it would be showing an implementation
+                               detail as though it were a decision.
+                            #}
+                            {% set granted = account.roles|filter(role => role != 'ROLE_USER') %}
+
+                            {% if granted is empty %}
+                                <span class="text-muted">None — can sign in and do nothing</span>
+                            {% else %}
+                                <div class="flex flex-wrap gap-1">
+                                    {% for role in granted %}
+                                        <span class="rounded-full border border-rule px-2 py-0.5 text-xs text-muted">
+                                            {{ role|replace({'ROLE_': ''})|lower|capitalize }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 text-right">
+                            <a href="{{ path('admin_accounts_edit', { id: account.id }) }}"
+                               class="text-sm text-accent no-underline hover:underline">Edit</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

@@ -1,0 +1,143 @@
+{#
+   How every form field in this application is drawn.
+
+   Until this existed, `form_row()` produced Symfony's default markup — a `div`,
+   a bare `label`, a bare `input` — and Tailwind's preflight strips the border
+   and padding a browser would otherwise give those. The result was a label
+   running into an invisible field: "TitleTerms of service" on one line, with
+   nothing to type into that anybody could see.
+
+   That is worth stating plainly because it was invisible from the test suite for
+   twelve features. Every assertion about these screens submits a form the
+   crawler found in the markup, and the markup was correct throughout — it was
+   only unreadable to a person. Nothing but looking would have caught it.
+
+   Registered globally in config/packages/twig.yaml rather than per template, so
+   a form added later is styled by default and no template can forget.
+#}
+{% use 'form_div_layout.html.twig' with
+    form_widget_simple as base_widget_simple,
+    textarea_widget as base_textarea_widget,
+    choice_widget_collapsed as base_choice_widget_collapsed,
+    checkbox_widget as base_checkbox_widget,
+    radio_widget as base_radio_widget
+%}
+
+{#
+   The classes every control a person types into shares, so a text field and a
+   number field and a date field cannot drift apart. The border turns red when
+   the field is the one being complained about, so a long form does not require
+   reading every message to find the problem.
+#}
+{% block field_classes %}
+{{- 'w-full rounded border px-3 py-2 text-ink outline-none focus:border-accent ' ~ (errors|default([])|length > 0 ? 'border-red-400' : 'border-rule') -}}
+{% endblock %}
+
+{% block form_row %}
+    <div>
+        {{ form_label(form) }}
+        {{ form_widget(form) }}
+        {{ form_help(form) }}
+        {{ form_errors(form) }}
+    </div>
+{% endblock %}
+
+{% block form_label %}
+    {% if label is not same as(false) %}
+        {% if not compound %}{% set label_attr = label_attr|merge({ for: id }) %}{% endif %}
+
+        {% if label is empty %}
+            {%- if label_format is not empty -%}
+                {% set label = label_format|replace({ '%name%': name, '%id%': id }) %}
+            {%- else -%}
+                {% set label = name|humanize %}
+            {%- endif -%}
+        {% endif %}
+
+        {% set label_attr = label_attr|merge({
+            class: (label_attr.class|default('') ~ ' mb-1 block text-sm font-medium text-ink')|trim
+        }) %}
+
+        <label{% for attrname, attrvalue in label_attr %} {{ attrname }}="{{ attrvalue }}"{% endfor %}>
+            {{- translation_domain is same as(false) ? label : label|trans(label_translation_parameters, translation_domain) -}}
+        </label>
+    {% endif %}
+{% endblock %}
+
+{% block form_widget_simple %}
+    {% set attr = attr|merge({ class: (attr.class|default('') ~ ' ' ~ block('field_classes'))|trim }) %}
+    {{ block('base_widget_simple') }}
+{% endblock %}
+
+{% block textarea_widget %}
+    {% set attr = attr|merge({ class: (attr.class|default('') ~ ' ' ~ block('field_classes'))|trim }) %}
+    {{ block('base_textarea_widget') }}
+{% endblock %}
+
+{% block choice_widget_collapsed %}
+    {% set attr = attr|merge({ class: (attr.class|default('') ~ ' ' ~ block('field_classes'))|trim }) %}
+    {{ block('base_choice_widget_collapsed') }}
+{% endblock %}
+
+{#
+   A checkbox reads better beside its label than beneath it, so it gets a row of
+   its own rather than the one above.
+#}
+{% block checkbox_row %}
+    <div>
+        <label class="flex items-center gap-2 text-sm text-ink">
+            {{ form_widget(form) }}
+            <span>{{ label is same as(false) ? '' : (label|default(name|humanize)|trans({}, translation_domain)) }}</span>
+        </label>
+        {{ form_help(form) }}
+        {{ form_errors(form) }}
+    </div>
+{% endblock %}
+
+{% block checkbox_widget %}
+    {% set attr = attr|merge({ class: (attr.class|default('') ~ ' h-4 w-4 rounded border border-rule accent-accent')|trim }) %}
+    {{ block('base_checkbox_widget') }}
+{% endblock %}
+
+{% block radio_widget %}
+    {% set attr = attr|merge({ class: (attr.class|default('') ~ ' h-4 w-4 border border-rule accent-accent')|trim }) %}
+    {{ block('base_radio_widget') }}
+{% endblock %}
+
+{% block choice_widget_expanded %}
+    <div class="space-y-2">
+        {% for child in form %}
+            <label class="flex items-start gap-2 text-sm text-ink">
+                {{ form_widget(child) }}
+                <span>
+                    {{- choice_translation_domain is same as(false)
+                        ? child.vars.label
+                        : child.vars.label|trans({}, choice_translation_domain) -}}
+                </span>
+            </label>
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block form_help %}
+    {% if help is not empty %}
+        <p class="mt-1 text-sm text-muted">
+            {{- translation_domain is same as(false) ? help : help|trans(help_translation_parameters, translation_domain) -}}
+        </p>
+    {% endif %}
+{% endblock %}
+
+{#
+   Errors sit under the field they are about, in the one colour this site uses
+   for a refusal. A summary at the top of a long form makes somebody hunt for
+   which field it meant.
+#}
+{% block form_errors %}
+    {% if errors|length > 0 %}
+        <ul class="mt-1 space-y-1 text-sm text-red-800">
+            {% for error in errors %}
+                <li>{{ error.message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endblock %}

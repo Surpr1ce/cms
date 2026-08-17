@@ -122,14 +122,20 @@ final readonly class SecurityHeadersSubscriber implements EventSubscriberInterfa
             // sanitising and reached a reader's page — does not run.
             sprintf("script-src 'self' 'nonce-%s'", $nonce),
 
-            // `unsafe-inline`, openly. The generic administration screens carry
-            // style attributes on elements we do not author, and an attribute
-            // cannot be marked with a nonce. Naming a nonce here would make
-            // things worse rather than better: a nonce in `style-src` makes a
-            // browser ignore `unsafe-inline` entirely, and those screens would
-            // break. Recorded as a known gap rather than hidden — a style can
-            // deface a page, where a script can take an editor's session.
-            "style-src 'self' 'unsafe-inline'",
+            // No `unsafe-inline`, as of feature 016.
+            //
+            // It was here because the generic administration screens carried
+            // style attributes on elements this project did not author, and an
+            // attribute cannot be marked with a nonce. Those screens were
+            // replaced by hand-written ones for reasons that had nothing to do
+            // with this — they looked like a different product — and the
+            // concession they required went with them.
+            //
+            // Worth noticing as a general point: the exception was documented,
+            // justified and correct, and it still stopped being needed the
+            // moment the thing that needed it was gone. A recorded concession is
+            // worth re-reading whenever the reason for it changes.
+            "style-src 'self'",
 
             // `data:` for the favicon, which is an inline SVG in the layout.
             "img-src 'self' data:",

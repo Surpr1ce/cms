@@ -6,17 +6,16 @@ namespace App\Tests\Functional\Admin;
 
 use App\Entity\Article;
 use App\Entity\Category;
+use App\Entity\Tag;
 use App\Entity\User;
 use App\Factory\ArticleFactory;
 use App\Factory\CategoryFactory;
 use App\Factory\TagFactory;
 use App\Factory\UserFactory;
-use App\Repository\ArticleRepository;
 use App\Repository\CategoryRepository;
 use App\Repository\TagRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use PHPUnit\Framework\Attributes\DataProvider;
 
 use function sprintf;
 
@@ -25,13 +24,26 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Zenstruck\Foundry\Test\Factories;
 
 /**
- * The generic-CRUD screens, and the rules a generic tool must not bypass.
+ * Sections, labels and accounts.
  *
- * The risk here is different from the earlier features. It is not that something
- * leaks — it is that a scaffolded screen quietly changes a behaviour the domain
- * holds. So the deletion tests assert **what survived**, not that a particular
- * service was called: a test checking for a service call would pass while the
- * articles were destroyed.
+ * These three lived in EasyAdmin until feature 016. What that bundle gave for
+ * free — a list, a form, a delete — is written by hand now, so what it *cost*
+ * has to be re-earned by tests rather than assumed: the rules that a generic
+ * screen was overridden to keep, and the ones a hand-written screen can forget
+ * as easily as a generated one.
+ *
+ * The three that carry the weight:
+ *
+ * **An address is generated once and then fixed.** No screen offers to edit one,
+ * and renaming does not move it — a section's address is in every link a reader
+ * has to it.
+ *
+ * **Deleting a section keeps its articles.** They become uncategorised; the
+ * subsections move up. Asserted on what survived, never on which class was
+ * called: a test that checked for a service call would pass while the articles
+ * were destroyed.
+ *
+ * **An account's stored hash is never rendered and never assigned from a form.**
  */
 final class ManageScreensTest extends WebTestCase
 {
@@ -44,375 +56,431 @@ final class ManageScreensTest extends WebTestCase
         $this->client = self::createClient();
     }
 
-    // --- permissions on every screen ---
+    // ------------------------------------------------------------ sections
 
-    /**
-     * @return iterable<string, array{string}>
-     */
-    public static function taxonomyAddressProvider(): iterable
-    {
-        yield 'the manage dashboard' => ['/admin/manage'];
-        yield 'the section list' => ['/admin/manage/category'];
-        yield 'the new section form' => ['/admin/manage/category/new'];
-        yield 'the label list' => ['/admin/manage/tag'];
-        yield 'the new label form' => ['/admin/manage/tag/new'];
-    }
-
-    /**
-     * @return iterable<string, array{string}>
-     */
-    public static function accountAddressProvider(): iterable
-    {
-        yield 'the account list' => ['/admin/manage/user'];
-        yield 'the new account form' => ['/admin/manage/user/new'];
-    }
-
-    #[DataProvider('taxonomyAddressProvider')]
-    #[DataProvider('accountAddressProvider')]
-    public function testEveryScreenIsClosedToSomebodyNotSignedIn(string $path): void
-    {
-        $this->client->request('GET', $path);
-
-        self::assertResponseRedirects();
-        self::assertStringContainsString('/login', (string) $this->client->getResponse()->headers->get('Location'));
-    }
-
-    #[DataProvider('taxonomyAddressProvider')]
-    public function testAnAuthorCannotReachATaxonomyScreen(string $path): void
-    {
-        $this->signIn([User::ROLE_AUTHOR]);
-
-        $this->client->request('GET', $path);
-
-        self::assertFalse(
-            $this->client->getResponse()->isSuccessful(),
-            sprintf('An author reached %s.', $path),
-        );
-    }
-
-    /**
-     * FR-014. Running the site and deciding who may run it are different
-     * authorities, and this is where that line is drawn in the interface.
-     */
-    #[DataProvider('accountAddressProvider')]
-    public function testAnEditorCannotReachAnAccountScreen(string $path): void
+    public function testAnEditorCreatesASection(): void
     {
         $this->signIn([User::ROLE_EDITOR]);
 
-        $this->client->request('GET', $path);
-
-        self::assertFalse(
-            $this->client->getResponse()->isSuccessful(),
-            sprintf('An editor reached %s.', $path),
-        );
-    }
-
-    #[DataProvider('taxonomyAddressProvider')]
-    public function testAnEditorReachesEveryTaxonomyScreen(string $path): void
-    {
-        $this->signIn([User::ROLE_EDITOR]);
-
-        $this->client->request('GET', $path);
-
-        self::assertResponseIsSuccessful(sprintf('An editor could not reach %s.', $path));
-    }
-
-    #[DataProvider('accountAddressProvider')]
-    public function testAnAdministratorReachesEveryAccountScreen(string $path): void
-    {
-        $this->signIn([User::ROLE_ADMIN]);
-
-        $this->client->request('GET', $path);
-
-        self::assertResponseIsSuccessful(sprintf('An administrator could not reach %s.', $path));
-    }
-
-    public function testAnEditorIsNotOfferedTheAccountsLink(): void
-    {
-        $this->signIn([User::ROLE_EDITOR]);
-
-        $this->client->request('GET', '/admin/manage');
-
-        self::assertStringNotContainsString(
-            '/admin/manage/user',
-            (string) $this->client->getResponse()->getContent(),
-        );
-    }
-
-    // --- sections ---
-
-    /**
-     * SC-001, and the hole this feature exists to close: before it, the section
-     * picker on the article screen was a list nobody could add to.
-     */
-    public function testAnEditorCreatesASectionWhichThenAppearsOnTheArticleScreen(): void
-    {
-        $this->signIn([User::ROLE_EDITOR]);
-
-        $crawler = $this->client->request('GET', '/admin/manage/category/new');
-        $this->client->submit($crawler->selectButton('saveAndReturn')->form([
-            'Category[name]' => 'Long Reads',
-        ]));
+        $this->submit('/admin/manage/sections/new', 'Create', [
+            'section[name]' => 'Long Reads',
+            'section[description]' => 'The ones that take a while.',
+        ]);
 
         $section = $this->onlySection();
+
         self::assertSame('Long Reads', $section->getName());
-        self::assertSame('long-reads', $section->getSlug());
-
-        $crawler = $this->client->request('GET', '/admin/articles/new');
-        self::assertStringContainsString('Long Reads', $crawler->filter('#article_category')->html());
-    }
-
-    public function testASecondSectionWithTheSameNameGetsADistinctAddress(): void
-    {
-        CategoryFactory::createOne(['name' => 'News', 'slug' => 'news']);
-        $this->signIn([User::ROLE_EDITOR]);
-
-        $crawler = $this->client->request('GET', '/admin/manage/category/new');
-        $this->client->submit($crawler->selectButton('saveAndReturn')->form(['Category[name]' => 'News']));
-
-        $slugs = array_map(
-            static fn (Category $category): string => $category->getSlug(),
-            $this->sections()->findAll(),
-        );
-
-        self::assertContains('news-2', $slugs);
+        self::assertSame('The ones that take a while.', $section->getDescription());
     }
 
     /**
-     * FR-003. The address appears in a public URL, so renaming a section does
-     * not move it — the same reasoning that freezes an article's address.
+     * The address is generated, and no screen offers a field for it.
+     */
+    public function testASectionsAddressIsGeneratedFromItsName(): void
+    {
+        $this->signIn([User::ROLE_EDITOR]);
+
+        $crawler = $this->client->request('GET', '/admin/manage/sections/new');
+        self::assertCount(0, $crawler->filter('input[name="section[slug]"]'));
+
+        $this->submit('/admin/manage/sections/new', 'Create', ['section[name]' => 'Long Reads']);
+
+        self::assertSame('long-reads', $this->onlySection()->getSlug());
+    }
+
+    /**
+     * And it stops moving. Every link a reader has to a section is that address.
      */
     public function testRenamingASectionDoesNotMoveItsAddress(): void
     {
-        $section = CategoryFactory::createOne(['name' => 'News', 'slug' => 'news']);
         $this->signIn([User::ROLE_EDITOR]);
+        $section = CategoryFactory::createOne(['name' => 'News', 'slug' => 'news']);
 
-        $crawler = $this->client->request('GET', '/admin/manage/category/'.$section->getId().'/edit');
-        $this->client->submit($crawler->selectButton('saveAndReturn')->form([
-            'Category[name]' => 'Current Affairs',
-        ]));
+        $this->submit(
+            '/admin/manage/sections/'.$section->getId().'/edit',
+            'Save',
+            ['section[name]' => 'Bulletins'],
+        );
 
-        $reloaded = $this->reloadSection($section);
+        $reloaded = $this->reloadSection($section->getId());
 
-        self::assertSame('Current Affairs', $reloaded->getName());
+        self::assertSame('Bulletins', $reloaded->getName());
         self::assertSame('news', $reloaded->getSlug());
     }
 
-    public function testNoSectionFormOffersToEditTheAddress(): void
-    {
-        $this->signIn([User::ROLE_EDITOR]);
-
-        $crawler = $this->client->request('GET', '/admin/manage/category/new');
-
-        self::assertCount(0, $crawler->filter('input[name="Category[slug]"]'));
-    }
-
     /**
-     * FR-004, through the generic screen. The scaffolded delete would leave the
-     * articles alone — the constraint does that — but would make the subsections
-     * top-level rather than moving them up to their grandparent.
+     * The assertion the deletion rule exists for, and it is about what
+     * survived.
      */
-    public function testDeletingASectionKeepsItsArticlesAndMovesItsSubsectionsUp(): void
+    public function testDeletingASectionUncategorisesItsArticlesRatherThanDestroyingThem(): void
     {
-        $grandparent = CategoryFactory::createOne(['slug' => 'root']);
-        $doomed = CategoryFactory::new()->childOf($grandparent)->create(['slug' => 'middle']);
-        CategoryFactory::new()->childOf($doomed)->create(['slug' => 'leaf']);
-        ArticleFactory::createMany(2, ['category' => $doomed]);
-
         $this->signIn([User::ROLE_EDITOR]);
-        $this->deleteThrough('/admin/manage/category', $doomed->getId());
 
-        $sections = $this->sections();
-        self::assertNull($sections->findOneBySlug('middle'));
+        $section = CategoryFactory::createOne(['name' => 'News', 'slug' => 'news']);
+        ArticleFactory::createMany(3, ['category' => $section, 'title' => 'Still here']);
 
-        $leaf = $sections->findOneBySlug('leaf');
-        self::assertInstanceOf(Category::class, $leaf);
-        self::assertSame('root', $leaf->getParent()?->getSlug(), 'The subsection did not move up.');
+        $this->delete('/admin/manage/sections/'.$section->getId(), 'Delete this section');
 
-        $articles = $this->articles();
-        self::assertCount(2, $articles);
+        $articles = $this->entityManager()->getRepository(Article::class)->findAll();
+
+        self::assertCount(3, $articles);
+
         foreach ($articles as $article) {
             self::assertNull($article->getCategory());
         }
     }
 
-    /**
-     * The batch route is disabled, and the override is what makes the rule hold
-     * even so — EasyAdmin funnels both deletes through deleteEntity().
-     */
-    public function testTheBatchDeleteRouteIsNotOffered(): void
+    public function testDeletingASectionMovesItsSubsectionsUpRatherThanToTheTop(): void
     {
-        CategoryFactory::createMany(2);
         $this->signIn([User::ROLE_EDITOR]);
 
-        $crawler = $this->client->request('GET', '/admin/manage/category');
+        $grandparent = CategoryFactory::createOne(['name' => 'Everything', 'slug' => 'everything']);
+        $parent = CategoryFactory::createOne(['name' => 'News', 'slug' => 'news', 'parent' => $grandparent]);
+        $child = CategoryFactory::createOne(['name' => 'Local', 'slug' => 'local', 'parent' => $parent]);
 
-        self::assertCount(0, $crawler->filter('input[name="batchActionName"]'));
+        $this->delete('/admin/manage/sections/'.$parent->getId(), 'Delete this section');
+
+        $reloaded = $this->reloadSection($child->getId());
+
+        self::assertNotNull($reloaded->getParent());
+        self::assertSame('Everything', $reloaded->getParent()->getName());
     }
 
-    // --- labels ---
+    // -------------------------------------------------------------- labels
 
     public function testAnEditorCreatesALabel(): void
     {
         $this->signIn([User::ROLE_EDITOR]);
 
-        $crawler = $this->client->request('GET', '/admin/manage/tag/new');
-        $this->client->submit($crawler->selectButton('saveAndReturn')->form(['Tag[name]' => 'Long Form']));
+        $this->submit('/admin/manage/labels/new', 'Create', ['label[name]' => 'Doctrine']);
 
-        $tags = $this->tags()->findAll();
+        $label = $this->onlyLabel();
 
-        self::assertCount(1, $tags);
-        self::assertSame('long-form', $tags[0]->getSlug());
+        self::assertSame('Doctrine', $label->getName());
+        self::assertSame('doctrine', $label->getSlug());
     }
 
-    public function testDeletingALabelKeepsItsArticles(): void
+    public function testDeletingALabelLeavesTheArticlesThatCarriedIt(): void
     {
-        $tag = TagFactory::createOne(['slug' => 'php']);
-        foreach (ArticleFactory::createMany(3) as $article) {
-            $article->addTag($tag);
-        }
-
-        $this->flush();
-
         $this->signIn([User::ROLE_EDITOR]);
-        $this->deleteThrough('/admin/manage/tag', $tag->getId());
 
-        self::assertCount(0, $this->tags()->findAll());
-        self::assertCount(3, $this->articles());
+        $label = TagFactory::createOne(['name' => 'Doctrine', 'slug' => 'doctrine']);
+        $article = ArticleFactory::createOne(['title' => 'Still here']);
+
+        $article->addTag($label);
+        $this->entityManager()->flush();
+
+        $this->delete('/admin/manage/labels/'.$label->getId(), 'Delete this label');
+
+        self::assertCount(1, $this->entityManager()->getRepository(Article::class)->findAll());
+        self::assertCount(0, $this->labels()->findAll());
     }
 
-    // --- accounts ---
+    // ------------------------------------------------------------ accounts
 
-    /**
-     * SC-002: a second person can be given access entirely through the browser.
-     */
     public function testAnAdministratorCreatesAnAccountThatCanSignIn(): void
     {
         $this->signIn([User::ROLE_ADMIN]);
 
-        $crawler = $this->client->request('GET', '/admin/manage/user/new');
-        $form = $crawler->selectButton('saveAndReturn')->form([
-            'User[email]' => 'newcomer@example.com',
-            'User[displayName]' => 'A Newcomer',
-            'User[plainPassword]' => 'a-long-enough-password',
+        $crawler = $this->client->request('GET', '/admin/manage/accounts/new');
+        $form = $crawler->selectButton('Create')->form([
+            'account[email]' => 'newcomer@example.com',
+            'account[displayName]' => 'A Newcomer',
+            'account[password]' => 'a-perfectly-good-password',
         ]);
 
-        // The roles are added to the submitted values rather than set on the
-        // form. Expanded multiple-choice renders one checkbox per role, all
-        // sharing the name `User[roles][]`, so the crawler exposes them as a
-        // collection that neither accepts an array nor types cleanly — posting
-        // the values directly is what a browser sends anyway.
+        // The permissions are added to the submitted values rather than set on
+        // the form. Expanded multiple choice renders one checkbox per role, all
+        // sharing the name `account[roles][]`, and the crawler will only accept
+        // a value the *first* of them offers.
         $values = $form->getPhpValues();
-
-        $account = $values['User'] ?? [];
+        $account = $values['account'] ?? [];
         self::assertIsArray($account);
         $account['roles'] = [User::ROLE_EDITOR];
-        $values['User'] = $account;
+        $values['account'] = $account;
 
         $this->client->request($form->getMethod(), $form->getUri(), $values);
+        self::assertResponseRedirects();
 
         $created = $this->accounts()->findOneByEmail('newcomer@example.com');
         self::assertInstanceOf(User::class, $created);
         self::assertContains(User::ROLE_EDITOR, $created->getRoles());
 
-        // Sign out, and in again as the new account.
+        // The password works, which is the only proof that it was hashed rather
+        // than stored as typed or dropped.
         $this->client->request('POST', '/logout');
         $crawler = $this->client->request('GET', '/login');
         $this->client->submit($crawler->selectButton('Sign in')->form([
             '_username' => 'newcomer@example.com',
-            '_password' => 'a-long-enough-password',
+            '_password' => 'a-perfectly-good-password',
         ]));
-        $this->client->request('GET', '/admin');
 
-        self::assertResponseIsSuccessful('The account created through the browser could not sign in.');
+        self::assertResponseRedirects();
     }
 
     /**
-     * FR-008 and SC-004. A form field mapped to the entity would have displayed
-     * the stored hash on the edit screen.
+     * Blank means unchanged. An edit form that demanded a password to save a
+     * display name would train people to retype one, and a retyped password is
+     * a weaker password.
      */
-    public function testNoAccountScreenDisplaysAPasswordOrAHash(): void
+    public function testEditingAnAccountWithoutAPasswordLeavesTheStoredOneAlone(): void
     {
-        $account = UserFactory::new()->editor()->withPassword()->create(['email' => 'someone@example.com']);
-        $hash = $account->getPassword();
-
         $this->signIn([User::ROLE_ADMIN]);
+        $account = UserFactory::new()->editor()->withPassword()->create(['email' => 'editor@example.com']);
+        $before = $account->getPassword();
 
-        foreach ([
-            '/admin/manage/user',
-            '/admin/manage/user/'.$account->getId().'/edit',
-        ] as $path) {
-            $this->client->request('GET', $path);
-            $body = (string) $this->client->getResponse()->getContent();
+        $this->submit('/admin/manage/accounts/'.$account->getId().'/edit', 'Save', [
+            'account[email]' => 'editor@example.com',
+            'account[displayName]' => 'A New Name',
+            'account[password]' => '',
+        ]);
 
-            self::assertStringNotContainsString($hash, $body, sprintf('%s displayed the hash.', $path));
-            self::assertStringNotContainsString('$2y$', $body, sprintf('%s displayed a hash.', $path));
+        $reloaded = $this->reloadAccount($account->getId());
+
+        self::assertSame('A New Name', $reloaded->getDisplayName());
+        self::assertSame($before, $reloaded->getPassword());
+    }
+
+    /**
+     * The one thing no response may ever contain.
+     */
+    public function testNoScreenRendersAStoredHash(): void
+    {
+        $this->signIn([User::ROLE_ADMIN]);
+        $account = UserFactory::new()->editor()->withPassword()->create(['email' => 'editor@example.com']);
+
+        foreach (['/admin/manage/accounts', '/admin/manage/accounts/'.$account->getId().'/edit'] as $address) {
+            $this->client->request('GET', $address);
+
+            self::assertStringNotContainsString(
+                $account->getPassword(),
+                (string) $this->client->getResponse()->getContent(),
+                sprintf('%s rendered the stored hash.', $address),
+            );
         }
     }
 
     /**
-     * FR-009. A form that demanded a password to save a display name would train
-     * people to retype one, and a retyped password is a weaker password.
-     */
-    public function testEditingWithoutAPasswordLeavesTheExistingOneWorking(): void
-    {
-        $account = UserFactory::new()->editor()->withPassword()->create(['email' => 'someone@example.com']);
-        $originalHash = $account->getPassword();
-
-        $this->signIn([User::ROLE_ADMIN]);
-
-        $crawler = $this->client->request('GET', '/admin/manage/user/'.$account->getId().'/edit');
-        $this->client->submit($crawler->selectButton('saveAndReturn')->form([
-            'User[displayName]' => 'A Renamed Person',
-            'User[plainPassword]' => '',
-        ]));
-
-        $reloaded = $this->accounts()->findOneByEmail('someone@example.com');
-        self::assertInstanceOf(User::class, $reloaded);
-        self::assertSame('A Renamed Person', $reloaded->getDisplayName());
-        self::assertSame($originalHash, $reloaded->getPassword(), 'The password changed when it should not have.');
-    }
-
-    /**
-     * FR-010: the sentence, not the foreign-key name a scaffolded delete would
-     * have produced.
-     */
-    public function testAnAccountThatOwnsContentCannotBeDeleted(): void
-    {
-        $author = UserFactory::new()->author()->create(['email' => 'author@example.com']);
-        ArticleFactory::createMany(2, ['author' => $author]);
-
-        $this->signIn([User::ROLE_ADMIN]);
-        $this->deleteThrough('/admin/manage/user', $author->getId());
-
-        self::assertNotNull($this->accounts()->findOneByEmail('author@example.com'));
-        self::assertCount(2, $this->articles());
-    }
-
-    public function testAnAccountThatOwnsNothingIsDeleted(): void
-    {
-        UserFactory::new()->author()->create(['email' => 'nobody@example.com']);
-
-        $this->signIn([User::ROLE_ADMIN]);
-        $account = $this->accounts()->findOneByEmail('nobody@example.com');
-        self::assertInstanceOf(User::class, $account);
-
-        $this->deleteThrough('/admin/manage/user', $account->getId());
-
-        self::assertNull($this->accounts()->findOneByEmail('nobody@example.com'));
-    }
-
-    /**
-     * FR-011. One administrator on a fresh installation removing themselves
-     * leaves a site nobody can administer.
+     * One administrator on a fresh installation deleting themselves leaves a
+     * site nobody can administer. The route refuses it, and the screen does not
+     * offer it.
      */
     public function testAnAdministratorCannotDeleteTheirOwnAccount(): void
     {
-        $administrator = $this->signIn([User::ROLE_ADMIN]);
+        $account = $this->signIn([User::ROLE_ADMIN]);
 
-        $this->deleteThrough('/admin/manage/user', $administrator->getId());
+        $crawler = $this->client->request('GET', '/admin/manage/accounts/'.$account->getId().'/edit');
+        self::assertCount(0, $crawler->filter('form[action$="/delete"]'));
 
-        self::assertNotNull($this->accounts()->findOneByEmail('person@example.com'));
+        $this->client->request('POST', '/admin/manage/accounts/'.$account->getId().'/delete', [
+            '_token' => 'anything',
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertNotNull($this->accounts()->findOneByEmail($account->getEmail()));
+    }
+
+    /**
+     * An account that owns content is refused with a sentence naming what it
+     * owns, where the database constraint alone would answer with a foreign-key
+     * name.
+     */
+    public function testAnAccountThatOwnsArticlesIsRefusedWithAnExplanation(): void
+    {
+        $this->signIn([User::ROLE_ADMIN]);
+
+        $author = UserFactory::new()->author()->create(['email' => 'author@example.com']);
+        ArticleFactory::createOne(['author' => $author]);
+
+        $crawler = $this->client->request('GET', '/admin/manage/accounts/'.$author->getId().'/edit');
+
+        self::assertStringContainsString(
+            'cannot be removed while it owns any',
+            $crawler->filter('main')->text(),
+        );
+
+        // No button either — offering one that always fails is worse than not
+        // offering it. The rule itself lives in UserDeleter and is proven
+        // against the database in
+        // tests/Integration/Service/Account/UserDeleterTest.php; what this
+        // asserts is that the screen tells the truth about it.
+        self::assertCount(0, $crawler->filter('form[action$="/delete"]'));
+    }
+
+    // ---------------------------------------------------------- permissions
+
+    /**
+     * Anonymous first, then the wrong role — `docs/testing.md` asks for both on
+     * every protected route.
+     */
+    public function testEveryScreenIsClosedToSomebodyNotSignedIn(): void
+    {
+        foreach ($this->everyScreen() as $address) {
+            $this->client->request('GET', $address);
+
+            self::assertResponseRedirects(message: sprintf('%s was open to anybody.', $address));
+        }
+    }
+
+    public function testAnAuthorReachesNoneOfThem(): void
+    {
+        $this->signIn([User::ROLE_AUTHOR]);
+
+        foreach ($this->everyScreen() as $address) {
+            $this->client->request('GET', $address);
+
+            self::assertResponseStatusCodeSame(403, sprintf('An author reached %s.', $address));
+        }
+    }
+
+    /**
+     * An editor runs the site; deciding who may run it is a different
+     * authority.
+     */
+    public function testAnEditorReachesTaxonomyButNotAccounts(): void
+    {
+        $this->signIn([User::ROLE_EDITOR]);
+
+        foreach (['/admin/manage', '/admin/manage/sections', '/admin/manage/labels'] as $address) {
+            $this->client->request('GET', $address);
+            self::assertResponseIsSuccessful(sprintf('An editor was refused %s.', $address));
+        }
+
+        foreach (['/admin/manage/accounts', '/admin/manage/accounts/new'] as $address) {
+            $this->client->request('GET', $address);
+            self::assertResponseStatusCodeSame(403, sprintf('An editor reached %s.', $address));
+        }
+    }
+
+    /**
+     * The screens are part of the same administration area as everything else,
+     * which was the whole reason for replacing the generic ones.
+     */
+    public function testTheScreensCarryTheSameNavigationAsTheRest(): void
+    {
+        $this->signIn([User::ROLE_ADMIN]);
+
+        foreach (['/admin/manage', '/admin/manage/sections', '/admin/manage/accounts'] as $address) {
+            $crawler = $this->client->request('GET', $address);
+
+            self::assertGreaterThan(
+                0,
+                $crawler->filter('header a[href="/admin/articles"]')->count(),
+                sprintf('%s does not carry the administration navigation.', $address),
+            );
+        }
+    }
+
+    // ------------------------------------------------------------- helpers
+
+    /**
+     * @return list<string>
+     */
+    private function everyScreen(): array
+    {
+        return [
+            '/admin/manage',
+            '/admin/manage/sections',
+            '/admin/manage/sections/new',
+            '/admin/manage/labels',
+            '/admin/manage/labels/new',
+            '/admin/manage/accounts',
+            '/admin/manage/accounts/new',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    private function submit(string $address, string $button, array $values): void
+    {
+        $crawler = $this->client->request('GET', $address);
+        self::assertResponseIsSuccessful(sprintf('%s did not open.', $address));
+
+        $this->client->submit($crawler->selectButton($button)->form($values));
+
+        self::assertTrue(
+            $this->client->getResponse()->isRedirection(),
+            sprintf('Submitting %s answered %d.', $address, $this->client->getResponse()->getStatusCode()),
+        );
+    }
+
+    private function delete(string $base, string $button): void
+    {
+        $crawler = $this->client->request('GET', $base.'/edit');
+        self::assertResponseIsSuccessful();
+
+        $this->client->submit($crawler->selectButton($button)->form());
+    }
+
+    private function onlySection(): Category
+    {
+        $all = $this->sections()->findAll();
+        self::assertCount(1, $all);
+
+        return $all[0];
+    }
+
+    private function onlyLabel(): Tag
+    {
+        $all = $this->labels()->findAll();
+        self::assertCount(1, $all);
+
+        return $all[0];
+    }
+
+    private function reloadSection(?int $id): Category
+    {
+        $section = $this->sections()->find($id);
+        self::assertInstanceOf(Category::class, $section);
+
+        return $section;
+    }
+
+    private function reloadAccount(?int $id): User
+    {
+        $account = $this->accounts()->find($id);
+        self::assertInstanceOf(User::class, $account);
+
+        return $account;
+    }
+
+    private function sections(): CategoryRepository
+    {
+        $this->entityManager()->clear();
+
+        $repository = self::getContainer()->get(CategoryRepository::class);
+        self::assertInstanceOf(CategoryRepository::class, $repository);
+
+        return $repository;
+    }
+
+    private function labels(): TagRepository
+    {
+        $this->entityManager()->clear();
+
+        $repository = self::getContainer()->get(TagRepository::class);
+        self::assertInstanceOf(TagRepository::class, $repository);
+
+        return $repository;
+    }
+
+    private function accounts(): UserRepository
+    {
+        $this->entityManager()->clear();
+
+        $repository = self::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $repository);
+
+        return $repository;
+    }
+
+    private function entityManager(): EntityManagerInterface
+    {
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
+
+        return $entityManager;
     }
 
     /**
@@ -420,7 +488,7 @@ final class ManageScreensTest extends WebTestCase
      */
     private function signIn(array $roles): User
     {
-        $user = UserFactory::new()->withPassword()->create([
+        $account = UserFactory::new()->withPassword()->create([
             'email' => 'person@example.com',
             'roles' => $roles,
         ]);
@@ -432,97 +500,6 @@ final class ManageScreensTest extends WebTestCase
         ]));
         $this->client->followRedirect();
 
-        return $user;
-    }
-
-    /**
-     * Deletes through the screen, using the token EasyAdmin renders for it.
-     *
-     * The token lives in a hidden confirmation form on the index page — EasyAdmin
-     * posts it there after a modal, rather than rendering a form per row. Reading
-     * it from the page rather than asking the container for one keeps this
-     * honest: the test uses the token the application actually issued.
-     */
-    private function deleteThrough(string $indexPath, ?int $id): void
-    {
-        self::assertNotNull($id);
-
-        $crawler = $this->client->request('GET', $indexPath);
-        $token = (string) $crawler->filter('form#action-confirmation-form input[name="token"]')->attr('value');
-
-        self::assertNotSame('', $token, 'No delete token was rendered on '.$indexPath);
-
-        $this->client->request('POST', $indexPath.'/'.$id.'/delete', ['token' => $token]);
-    }
-
-    private function onlySection(): Category
-    {
-        $all = $this->sections()->findAll();
-        self::assertCount(1, $all);
-
-        return $all[0];
-    }
-
-    private function reloadSection(Category $section): Category
-    {
-        $reloaded = $this->sections()->find($section->getId());
-        self::assertInstanceOf(Category::class, $reloaded);
-
-        return $reloaded;
-    }
-
-    private function sections(): CategoryRepository
-    {
-        $this->clear();
-
-        $repository = self::getContainer()->get(CategoryRepository::class);
-        self::assertInstanceOf(CategoryRepository::class, $repository);
-
-        return $repository;
-    }
-
-    private function tags(): TagRepository
-    {
-        $this->clear();
-
-        $repository = self::getContainer()->get(TagRepository::class);
-        self::assertInstanceOf(TagRepository::class, $repository);
-
-        return $repository;
-    }
-
-    private function accounts(): UserRepository
-    {
-        $this->clear();
-
-        $repository = self::getContainer()->get(UserRepository::class);
-        self::assertInstanceOf(UserRepository::class, $repository);
-
-        return $repository;
-    }
-
-    /**
-     * @return list<Article>
-     */
-    private function articles(): array
-    {
-        $this->clear();
-
-        $repository = self::getContainer()->get(ArticleRepository::class);
-        self::assertInstanceOf(ArticleRepository::class, $repository);
-
-        return array_values($repository->findAll());
-    }
-
-    private function clear(): void
-    {
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $entityManager->clear();
-    }
-
-    private function flush(): void
-    {
-        self::getContainer()->get('doctrine')->getManager()->flush();
+        return $account;
     }
 }

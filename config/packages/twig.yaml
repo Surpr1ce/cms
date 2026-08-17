@@ -1,6 +1,14 @@
 twig:
     file_name_pattern: '*.twig'
 
+    # Global rather than per template, so a form added later is styled by default
+    # and no template can forget. Symfony's own theme renders a bare label and a
+    # bare input, and Tailwind's preflight takes the border and padding off both
+    # — which produced administration screens where the label ran into a field
+    # nobody could see. See the comment at the top of the file.
+    form_themes:
+        - 'form/theme.html.twig'
+
     globals:
         # Available to every template including the error pages, which have no
         # controller of ours to pass it down.
