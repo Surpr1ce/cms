@@ -1,7 +1,25 @@
 api_platform:
-    title: Hello API Platform
-    version: 1.0.0
+    title: 'CMS read API'
+    description: >
+        Published content, readable and nothing else. Every address here serves
+        exactly what the public website serves, decided by the same code — see
+        docs/adr/0002-twig-monolith-with-read-only-api.md.
+    version: '1.0.0'
+
     defaults:
         stateless: true
         cache_headers:
-            vary: ['Content-Type', 'Authorization', 'Origin']
+            vary: ['Content-Type', 'Accept', 'Origin']
+
+    # Only the entities under src/ApiResource/ are exposed, and those are read
+    # models rather than Doctrine entities. Nothing under src/Entity/ carries an
+    # #[ApiResource] attribute, so no entity field can reach the API by being
+    # added — which is how an email address or a password hash would otherwise
+    # arrive one day without anybody deciding.
+    mapping:
+        paths:
+            - '%kernel.project_dir%/src/ApiResource'
+
+    formats:
+        jsonld: ['application/ld+json']
+        json: ['application/json']
