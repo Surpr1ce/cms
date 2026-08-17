@@ -7,11 +7,13 @@ namespace App\Service\Content;
 use App\Entity\Article;
 use App\Entity\Tag;
 use App\Entity\User;
+use App\Exception\ContentWasChangedElsewhere;
 use App\Form\Command\ArticleCommand;
 use App\Repository\ArticleRepository;
 use App\Service\Slug\UniqueSlugGenerator;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\OptimisticLockException;
 
 use function in_array;
 
@@ -61,10 +63,44 @@ final readonly class ArticleEditor
         return $article;
     }
 
+    /**
+     * @throws ContentWasChangedElsewhere when somebody else saved between the
+     *                                    form being opened and this submission arriving
+     */
     public function update(ArticleCommand $command, Article $article): void
     {
+        // Before anything is applied, deliberately. A check that ran afterwards
+        // would refuse with the changes already staged on a managed entity, and
+        // the next flush anywhere in the request would write them.
+        $this->guardAgainstAStaleVersion($command->version, $article);
+
         $this->apply($command, $article);
-        $this->entityManager->flush();
+
+        try {
+            $this->entityManager->flush();
+        } catch (OptimisticLockException) {
+            // The other half of the same rule. The check above catches the
+            // ordinary case — two forms, one saved after the other. This catches
+            // the narrow one it cannot see: two requests in flight at once, both
+            // holding the same version, where the database settles it by
+            // refusing the second UPDATE.
+            throw ContentWasChangedElsewhere::between($command->version, $article->getVersion());
+        }
+    }
+
+    /**
+     * @throws ContentWasChangedElsewhere
+     */
+    private function guardAgainstAStaleVersion(?int $submitted, Article $article): void
+    {
+        if ($submitted === $article->getVersion()) {
+            return;
+        }
+
+        // Null lands here too, and that is the point: a submission carrying no
+        // version at all is refused rather than trusted, because removing a
+        // field is the easiest way to forge one.
+        throw ContentWasChangedElsewhere::between($submitted, $article->getVersion());
     }
 
     private function apply(ArticleCommand $command, Article $article): void

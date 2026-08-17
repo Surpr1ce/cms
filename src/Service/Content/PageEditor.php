@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Service\Content;
 
 use App\Entity\Page;
+use App\Exception\ContentWasChangedElsewhere;
 use App\Form\Command\PageCommand;
 use App\Repository\PageRepository;
 use App\Service\Slug\UniqueSlugGenerator;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\OptimisticLockException;
 use Symfony\Component\Clock\ClockInterface;
 
 /**
@@ -47,10 +49,28 @@ final readonly class PageEditor
         return $page;
     }
 
+    /**
+     * The same rule ArticleEditor applies, and for the same reason — see the
+     * comments there. Repeated rather than shared: the two editors have stayed
+     * separate on purpose, and a base class holding one method would tie them
+     * together for less than it costs.
+     *
+     * @throws ContentWasChangedElsewhere when somebody else saved between the
+     *                                    form being opened and this submission arriving
+     */
     public function update(PageCommand $command, Page $page): void
     {
+        if ($command->version !== $page->getVersion()) {
+            throw ContentWasChangedElsewhere::between($command->version, $page->getVersion());
+        }
+
         $this->apply($command, $page);
-        $this->entityManager->flush();
+
+        try {
+            $this->entityManager->flush();
+        } catch (OptimisticLockException) {
+            throw ContentWasChangedElsewhere::between($command->version, $page->getVersion());
+        }
     }
 
     private function apply(PageCommand $command, Page $page): void
