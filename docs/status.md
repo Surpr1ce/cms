@@ -8,8 +8,11 @@ as such at the top of the file.
 
 ## Where this stands
 
-Seventeen features, all on `master`, `composer qa` green after each and CI
-green since feature 011. **884 tests, 2670 assertions.**
+Nineteen features — eighteen on `master`, and feature 019 on its branch until it
+merges — `composer qa` green after each and CI green since feature 011.
+**1059 tests, 3308 assertions**, twenty-seven of which assert the architecture
+itself rather than any behaviour, plus twenty browser checks that `composer qa`
+deliberately does not run.
 
 A reader can find the site, read it, search it and subscribe to it. An editor can
 write, publish, upload, and get back in after forgetting their password. An
@@ -508,6 +511,141 @@ through a real browser, covering every one of those defects. It is not part of
 `composer qa` — it needs a running site and a browser — and
 [`docs/testing.md`](testing.md) says so.
 
+### Feature 019 — every listing bounded
+
+The public side has been paginated since feature 002. The administration side
+never was: `/admin/articles`, `/admin/pages`, `/admin/manage/accounts` and
+`/admin/manage/labels` each loaded their whole table, and `/admin/media` asked for
+a hundred files and showed a hundred with nothing on the screen to say that the
+hundred-and-first existed. Nobody noticed for eighteen features because a
+development site holds twelve articles. All five fetch one page now, through the
+same `Paginator` and the same previous/next component the public listings use.
+
+**The article list was the reason this was a feature rather than a chore.** It
+loaded every article and then asked `ArticleVoter` about each one, which is
+correct and cannot be paginated: cutting that query into pages would have
+produced pages of unpredictable size — twenty rows fetched, six shown. So the
+visibility rule now exists twice, once as `ArticleVoter::canView()` and once as
+`ArticleRepository::findPageForViewer()`, and
+`ArticleVisibilityMatchesTheVoterTest` runs both over the same articles for every
+combination of roles and ownership and asserts the two answers are identical.
+That test is what makes the duplication a trade rather than a liability; without
+it the query would quietly have become the real rule.
+
+**The sections screen is deliberately not paginated.** It renders a tree, and a
+tree cut across a page boundary is not a tree — a subsection would appear at the
+top of page two indented under nothing. Sections are the site's navigation and
+few by nature, so the reason is written in the controller rather than the screen
+being made to lie.
+
+**The sitemap had no ceiling at all.** The articles and pages were capped at ten
+thousand each and the sections and labels were not capped, so the document as a
+whole was unbounded. `SitemapBudget` now gives it fifty thousand addresses — the
+protocol's number — spent across the four lists in order, so the ceiling belongs
+to the document rather than to any one list, and a list past the ceiling is never
+loaded rather than sliced afterwards. A site that needs more than that needs a
+sitemap *index*, which is recorded as out of scope rather than approximated.
+
+Two N+1s came out of the same work, both found by the new query-count assertion
+rather than by reading: the files screen names each uploader and the pages screen
+shows each parent, and both associations were lazy. `ListingsArePaginatedTest`
+asserts over every paginated screen that the query count for seventeen rows
+equals the count for two.
+
+Also fixed on the way: `tools/browser-check.mjs` reported five false failures
+against the built-in PHP server, which serves one request at a time — its fixed
+six-second wait expired while the module graph was still loading, so it blamed
+the enhancement for not having run yet. It waits for the page to be ready now
+instead of sleeping through it.
+
+### After feature 019 — the architecture became a gate rather than a paragraph
+
+`CLAUDE.md` has said since feature 001 that dependencies point inwards and that
+the domain must not know about HTTP or Twig. Nothing checked it. PHPStan at level
+max will happily analyse an entity that renders a template, and a reviewer sees a
+boundary crossing only if they read the `use` statements of the file that crossed
+it — which is how [ADR 13](adr/0013-two-places-where-the-domain-knows-about-delivery.md)
+came to be written *after* an audit found four such imports that had been in place
+for features.
+
+`tests/Unit/Architecture/` closes that. Two files, 27 assertions, no kernel and no
+database, a tenth of a second inside the unit suite:
+
+- **`LayeringTest`** — the import matrix, layer by layer, with every exception a
+  commented decision: no HTTP or Twig under `Entity/`, `Repository/`, `Search/` or
+  `Service/`; no `QueryBuilder` leaving a repository; no query built in a
+  controller; a `Form/Command` importing nothing it could act with; and a
+  directory added to `src/` with no row in the matrix failing by name. It also
+  pins ADR 13's list of exceptions to the files allowed to hold them — a fourth
+  service taking an `UploadedFile`, a second reading the actor from the session,
+  or a second naming a Twig template, fails.
+- **`DesignPrinciplesTest`** — the habits: an action capped at 25 lines of code, a
+  class at seven constructor dependencies, no reach for the container, no mutable
+  static state, and `final` on every class in a layer that has no designed
+  inheritance.
+
+Both were written from the standard rules rather than invented — the dependency
+rule from hexagonal architecture, single responsibility and dependency inversion
+from SOLID, the thin-controller rule from `CLAUDE.md` itself. What the project did
+**not** adopt is the shape those rules are usually shipped in: no `Domain/`,
+`Application/`, `Infrastructure/` split, no bounded contexts, no command bus. This
+is a layered Symfony monolith and the tests assert *its* layers. A dependency tool
+(Deptrac, PHPArkitect) would do the same job with a sixth tool in the toolchain
+and a configuration language of its own; two test files in the suite that already
+runs need neither.
+
+The first run found real work rather than confirming the status quo:
+
+- **`PasswordResetController` composed and sent the only email this application
+  sends**, generating the security-critical link itself. Thirty lines of code in
+  one action, and the link — which must come from configuration and never from the
+  request — could only be tested through HTTP. Now `PasswordResetMailer`, in the
+  application layer, with the body a `TemplatedEmail` template so Twig stays out
+  of it.
+- **The completion screen was one action branching on the request method.**
+  Showing a form and storing a password are two acts with two answers, and the
+  second signs somebody in; they are two routes now, same path, same link in the
+  email.
+- **`CLAUDE.md` said a form command carries "never an entity"**, while five
+  properties across three commands hold the section, parent or image somebody
+  picked from a list. The document was wrong rather than the code: Symfony's
+  `EntityType` hands over the entity, and carrying an identifier instead would
+  mean every service looking it up again with no rule to apply. The rule now says
+  what it means — never the entity being edited, and never anything a command
+  could act with.
+
+`.claude/agents/architecture-guardian.md` is the other half: the judgement calls a
+text scan cannot make — a rule living in the wrong layer, an invariant bypassed
+through a setter, the same rule written twice with nothing tying the copies
+together. `CLAUDE.md`'s phase 4 now asks for it before a merge, beside the
+security pass.
+
+**Its first run found fifteen things and the layer directions were not among
+them.** Nothing inward imports outwards; no entity, repository or service knows
+what HTTP is, beyond the three exceptions ADR 13 records and the suite now pins.
+What had drifted is *where rules live* — four of them at the delivery boundary —
+and how far feature 019's own success criterion reached; both are listed under
+known gaps below rather than described as done.
+
+**A second pass before the release closed nine more.** It caught the thing the
+first pass had created: extracting `PasswordResetMailer` moved a Twig *template
+name* into the application layer, which made "the domain knows nothing of Twig"
+false as written — ADR 13 is amended to record the third exception and
+`LayeringTest` pins it, along with the door beside it (the `Service` row forbade
+`Twig\Environment` while admitting every `Symfony\Bridge` and `Symfony\Bundle`
+class, `BodyRenderer` and `AbstractController` included). Also closed: the
+sitemap's spend policy moved out of the controller action into `SitemapAddresses`
+where a test can hand it a ceiling of four and watch which lists come back empty;
+the sitemap stopped hydrating up to fifty thousand entities to print a slug and a
+date, which the security pass rightly called a *widening* of the old ten-thousand
+cap; the reset form now posts to the POST route by name rather than to the GET
+route that happens to share its path; the CSRF check on that route got the test
+whose absence meant deleting it left the suite green; the reset link's
+"configuration, not the request" rule got a unit test that hands the router an
+attacker's host on purpose; and `/admin/log` — the sixth paginated screen, missing
+from the provider whose own docblock says a provider exists so nobody forgets one
+— joined `ListingsArePaginatedTest`.
+
 ### After feature 017 — the reviewer and security passes
 
 Not a feature: the two reviews the constitution asks for at phase 4, run for the
@@ -565,11 +703,11 @@ Sixteen tests were added, covering the refusals rather than the happy paths.
 | Filtering the log | Not started. Newest first and paged is enough to be useful; filtering by person or by kind is a real improvement and its own work |
 | Recording *what changed* in an edit | Deliberately absent. The log records decisions, not keystrokes; showing an editor the difference between two versions is feature 009's open follow-up rather than this one's |
 | Expiring old entries | **Nothing expires, on purpose.** A record that deletes itself after ninety days cannot answer a question asked on the ninety-first. The table grows, and that is what a record does |
-| Rate limiting on search | **Not implemented.** A public, unauthenticated, unbounded-cost endpoint, and the cheapest thing on the site to abuse. The query is bounded in length and the results in number, which is not the same as a limit. Belongs with the caching work below |
+| ~~Rate limiting on search~~ | **Closed by feature 018.** Both `/search` and `/search/suggestions` are limited per client. The suggestion route had a limiter first, because it is asked on every keystroke; that `/search` itself had none was one of the second review pass's findings |
 | Snippet highlighting in results | Not started. A result shows the same summary the rest of the site shows, rather than the sentence the match was in |
 | Search in more than English | Not started. The stemming configuration is hard-coded, matching the language the constitution requires everything to be written in |
 | The search index expression is duplicated | Between `src/Search/SiteSearch.php` and the migration that creates the GIN indexes. They must match character for character or PostgreSQL silently reads every row instead. Nothing enforces it |
-| A sitemap index | Not needed yet, and recorded as a limit. One document holds fifty thousand addresses; past that the format requires an index of sitemaps, and this serves one document with a ten-thousand ceiling |
+| A sitemap index | Not needed yet, and recorded as a limit. One document holds fifty thousand addresses; past that the format requires an index of sitemaps. Feature 019 gave the document exactly that ceiling — `SitemapBudget`, spent across the articles, pages, sections and labels in that order — so reaching it drops the least valuable addresses rather than whichever list happened to be fetched last |
 | Full article bodies in the feed | Deliberately absent. The feed carries summaries, so it announces rather than duplicates |
 | Caching of **pages** | Not started, and deliberately so — the menu costs one query per request. Files are cached by the browser since feature 012; HTML is not cached at all |
 | Security and quality audits | **Not started, and the largest process debt in the project.** The constitution requires a `symfony-reviewer` pass at phase 4 of every feature and none of the fourteen has had one, because no session that built them could spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md`, but that is not the same thing |
@@ -613,6 +751,50 @@ reports must be a status somebody checked.** `gh run list` takes two seconds.
 Recorded because behaviour that looks complete and is not is worse than a missing
 feature.
 
+- **Five reads reachable from a route are still unbounded**, so feature 019's
+  SC-001 — "no route in the application loads an unbounded number of rows" — is
+  written wider than what was built. `/api/pages`, `/api/sections` and `/api/tags`
+  return every row (`ArticleProvider` shows the paginated shape they should have);
+  the article and page edit forms have five `query_builder` closures with no limit,
+  so the media library and every page, section and label are read whole two clicks
+  from the screens 019 paginated; and `PageRepository::findPublishedChildrenOf()`
+  is unbounded behind `/{slug}`. Found by the architecture and security audits,
+  not by the feature.
+- **Four rules live at the delivery boundary rather than behind a service**, which
+  makes `CLAUDE.md`'s "Controller — thin, delegates to services" a convention with
+  exceptions rather than a rule: `Admin\MediaController::describe()` holds the only
+  copy of "a description cannot be empty" and writes through the entity manager
+  (`MediaUploader` accepts a blank one, so the same field has two rules depending
+  on the screen); `Admin\ArticleController::delete()` removes through the entity
+  manager while `PageDeleter`, `MediaDeleter`, `CategoryDeleter` and `UserDeleter`
+  all exist; `Admin\DashboardController` composes three query specifications in the
+  action; and `PageController::publishedAncestorsOf()` decides a published-only
+  rule in PHP, one lazy load per level.
+- **A page can be given an address that is a permanent 404.** `PageController`
+  keeps the reserved list (`articles`, `sections`, `topics`, `api`, `admin`) and
+  refuses those addresses when serving them, but `UniqueSlugGenerator` has never
+  seen it — so a page titled "Articles" saves with a success message and is
+  unreachable to every reader.
+- **`MenuRuntime` memoises without a way to forget.** Harmless under php-fpm, where
+  the process ends with the response; under a worker runtime it would serve one
+  request's menu to the next, including pages unpublished since.
+  `Security\Csp\NonceGenerator` holds the same shape *with* a `forget()`, wired from
+  `SecurityHeadersSubscriber` — that is the pattern to copy.
+- **`AdminExtension` and `PageController::probe()` fabricate a `Page` entity** to
+  give `PageVoter` a subject for a question that has no subject, while
+  `AdministrationVoter` exists for exactly that and already answers three such
+  questions. Two mechanisms for one question, and the delivery layer uses the wrong
+  one.
+- **"Who is this account" is written six times.** Three copies of compare-by-id
+  with an object-identity fallback, and four of `isEditorial()`. Only one pair is
+  pinned by a test (`ArticleVisibilityMatchesTheVoterTest`); the drift that would
+  matter — `AccountEditor` and `AdministrationVoter` disagreeing about an
+  administrator demoting themselves — would be silent.
+- **The JSON API's copy of "an unpublished parent is not named" has no test.**
+  `PageResource` filters it, `PageController` and `MenuRuntime` filter it too, and
+  the functional API test only ever creates a published parent — on the one surface
+  `CLAUDE.md`'s "the same data through Twig and the JSON API" claim rests on.
+
 - **Slug regeneration is not enforced.** `PublishableContent` guarantees an
   address stops changing after publication, because that needs no other row. It
   cannot guarantee an address is regenerated when a draft's title changes,
@@ -640,6 +822,12 @@ feature.
 
 ## Known constraints
 
+- **`APP_SECRET` is empty in `.env` and nothing refuses to start without it.** A
+  deployment that forgets to set it in the environment or in `.env.local` derives
+  CSRF tokens and signed URIs from an empty string, silently. It belongs on the
+  deployment checklist beside `composer install --no-dev`; raised by the security
+  pass before the first release. (`.env.dev` carries a committed development
+  secret on purpose, which `docs/audit.md` already records.)
 - ~~**Docker is unavailable on the development machine.**~~ **No longer true as of
   2026-08-17.** Docker 29.7.2 with WSL2 is installed and working, and
   `compose.yaml` has been verified — `docker compose up -d database` reaches a

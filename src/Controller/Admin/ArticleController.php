@@ -16,6 +16,7 @@ use App\Security\ArticleVoter;
 use App\Service\Audit\AuditLog;
 use App\Service\Content\ArticleEditor;
 use App\Service\Content\PublicationService;
+use App\Service\Pagination\Paginator;
 use Doctrine\ORM\EntityManagerInterface;
 
 use function sprintf;
@@ -48,25 +49,36 @@ final class ArticleController extends AbstractController
         private readonly PublicationService $publication,
         private readonly EntityManagerInterface $entityManager,
         private readonly AuditLog $audit,
+        private readonly Paginator $paginator,
     ) {
     }
 
     #[Route('', name: 'admin_article_index', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $viewer = $this->currentUser();
+        $number = Paginator::pageNumberFrom($request->query->get('page'));
 
-        // Everything the viewer may see, filtered by the same voter that guards
-        // the edit screen — so a listing can never offer a link that leads to a
-        // refusal.
-        $visible = array_values(array_filter(
-            $this->articles->findBy([], ['createdAt' => 'DESC']),
-            fn (Article $article): bool => $this->isGranted(ArticleVoter::VIEW, $article),
-        ));
+        // Everything the viewer may see, decided in the query rather than by
+        // asking the voter about each of however many rows came back. That is
+        // not an optimisation: a listing filtered after it is fetched cannot be
+        // cut into pages, because twenty rows fetched would show as six.
+        //
+        // The rule now exists twice — here as SQL and in ArticleVoter as the
+        // permission — and ArticleVisibilityMatchesTheVoterTest runs both over
+        // the same articles and asserts they agree, for every combination of
+        // roles and ownership. Without that test this duplication would be a
+        // liability rather than a trade.
+        $fetched = $this->articles->findPageForViewer(
+            $this->currentUser(),
+            $this->paginator->fetchLimitFor(),
+            $this->paginator->offsetFor($number),
+        );
 
+        // The viewer is not handed to the template: the one thing it decided
+        // there — whether a title is a link — is `is_granted('ARTICLE_EDIT')`,
+        // which asks the voter itself.
         return $this->render('admin/article/index.html.twig', [
-            'articles' => $visible,
-            'viewer' => $viewer,
+            'page' => $this->paginator->paginate($fetched, $number),
         ]);
     }
 

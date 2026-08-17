@@ -14,7 +14,13 @@
     <h1 class="text-2xl font-semibold tracking-tight">Set a new password</h1>
 
     <form method="post"
-          action="{{ path('password_reset_complete', { token: token }) }}"
+          {#
+             The POST route by name, not the GET one that happens to share its
+             path. They are the same address today; naming the wrong one works
+             only for as long as that stays true, and the failure would be a 405
+             on the last step of getting back into an account.
+          #}
+          action="{{ path('password_reset_submit', { token: token }) }}"
           class="mt-8 max-w-sm space-y-5">
         {% if error|default(null) %}
             <p class="rounded border border-rule bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">

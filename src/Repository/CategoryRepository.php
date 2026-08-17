@@ -40,11 +40,16 @@ final class CategoryRepository extends ServiceEntityRepository implements Slugge
     }
 
     /**
+     * The limit is optional because a menu builder wants the whole tree — a tree
+     * missing its last branches is not one. The sitemap passes what is left of
+     * its address budget instead, which is the one caller that has a ceiling to
+     * respect.
+     *
      * @return list<Category> the whole tree, alphabetically, for a menu builder
      *                        to arrange
      */
-    public function findAllOrdered(): array
+    public function findAllOrdered(?int $limit = null): array
     {
-        return array_values($this->findBy([], ['name' => 'ASC']));
+        return array_values($this->findBy([], ['name' => 'ASC'], $limit));
     }
 }

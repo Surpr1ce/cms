@@ -6,17 +6,13 @@ namespace App\Controller;
 
 use App\Entity\PasswordResetRequest;
 use App\Service\Account\PasswordPolicy;
+use App\Service\Account\PasswordResetMailer;
 use App\Service\Account\PasswordResetService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Mailer\MailerInterface;
-use Symfony\Component\Mime\Address;
-use Symfony\Component\Mime\Email;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Security\Http\Authentication\UserAuthenticatorInterface;
 use Symfony\Component\Security\Http\Authenticator\AuthenticatorInterface;
 
@@ -33,14 +29,18 @@ use function trim;
  * the wrong one.
  *
  * That is why nothing here branches on the result of `request()`. The service
- * answers with a token or with null; this sends an email in the first case and
+ * answers with a token or with null; this asks for an email in the first case and
  * does nothing in the second, and then renders the identical page either way.
+ *
+ * What the email *says* is `PasswordResetMailer`'s, not this controller's — as is
+ * the link in it, which must be built from configuration rather than from the
+ * request that asked for it.
  */
 final class PasswordResetController extends AbstractController
 {
     public function __construct(
         private readonly PasswordResetService $resets,
-        private readonly MailerInterface $mailer,
+        private readonly PasswordResetMailer $mails,
         private readonly RateLimiterFactoryInterface $passwordResetLimiter,
         private readonly UserAuthenticatorInterface $authenticator,
         // Named explicitly: the form-login authenticator is registered per
@@ -48,9 +48,6 @@ final class PasswordResetController extends AbstractController
         // form_login.main` is the one belonging to the `main` firewall, and
         // config/services.yaml says so.
         private readonly AuthenticatorInterface $formLogin,
-        private readonly UrlGeneratorInterface $urlGenerator,
-        // Where this site actually lives, from configuration. See linkFor().
-        private readonly string $siteUri,
     ) {
     }
 
@@ -82,15 +79,7 @@ final class PasswordResetController extends AbstractController
         if (null !== $started) {
             [$account, $token] = $started;
 
-            $this->mailer->send(
-                new Email()
-                    ->to(new Address($account->getEmail(), $account->getDisplayName()))
-                    ->subject('Set a new password')
-                    ->text($this->renderView('email/reset_password.txt.twig', [
-                        'displayName' => $account->getDisplayName(),
-                        'link' => $this->linkFor($token),
-                    ])),
-            );
+            $this->mails->send($account, $token);
         }
 
         // The same page, whichever happened. Rendered rather than redirected, so
@@ -103,30 +92,45 @@ final class PasswordResetController extends AbstractController
     /**
      * The link.
      *
-     * Invalid, expired, used and superseded all arrive here as null, and all get
-     * the same refusal — telling them apart tells whoever holds a stolen link
-     * what kind of stolen link they have.
+     * Invalid, expired, used and superseded all arrive as null, and all get the
+     * same refusal — telling them apart tells whoever holds a stolen link what
+     * kind of stolen link they have.
      */
     #[Route(
         '/reset-password/{token}',
         name: 'password_reset_complete',
         requirements: ['token' => '[0-9a-f]{32}'],
-        methods: ['GET', 'POST'],
+        methods: ['GET'],
     )]
-    public function complete(string $token, Request $request): Response
+    public function complete(string $token): Response
+    {
+        if (!$this->resets->findUsable($token) instanceof PasswordResetRequest) {
+            return $this->refuse();
+        }
+
+        return $this->render('public/security/reset_complete.html.twig', ['token' => $token]);
+    }
+
+    /**
+     * The new password.
+     *
+     * A route of its own rather than a branch inside `complete()`: showing a form
+     * and storing a password are two acts with two answers, and the second one
+     * signs somebody in. The route and its name are unchanged, so the link in the
+     * email is the same link — `methods:` is what separates them.
+     */
+    #[Route(
+        '/reset-password/{token}',
+        name: 'password_reset_submit',
+        requirements: ['token' => '[0-9a-f]{32}'],
+        methods: ['POST'],
+    )]
+    public function submit(string $token, Request $request): Response
     {
         $reset = $this->resets->findUsable($token);
 
         if (!$reset instanceof PasswordResetRequest) {
-            return $this->render(
-                'public/security/reset_refused.html.twig',
-                [],
-                new Response(status: Response::HTTP_NOT_FOUND),
-            );
-        }
-
-        if (!$request->isMethod('POST')) {
-            return $this->render('public/security/reset_complete.html.twig', ['token' => $token]);
+            return $this->refuse();
         }
 
         if (!$this->isCsrfTokenValid('password-reset-complete', (string) $request->request->get('_token'))) {
@@ -155,40 +159,15 @@ final class PasswordResetController extends AbstractController
     }
 
     /**
-     * The reset link, built from configuration rather than from the request.
-     *
-     * This is the one place in the application where that distinction is worth a
-     * paragraph. `generateUrl(..., ABSOLUTE_URL)` takes its host from the router's
-     * context, and inside a request that context is filled from the incoming
-     * `Host:` header. So an attacker could POST somebody else's address here with
-     * `Host: attacker.example`, and the victim would receive a genuine email from
-     * this site whose link pointed at the attacker's server — handing over a live
-     * token, which `complete()` accepts and turns straight into a session. Every
-     * other control here (hashed at rest, single use, one hour, throttled,
-     * identical responses) is bypassed rather than weakened, because the token is
-     * given away rather than guessed.
-     *
-     * `trusted_hosts` closes it too and is set, but this closes it whatever the
-     * web server in front happens to pass through — a mail that leaves the
-     * building deserves the belt as well as the braces.
-     *
-     * The context is swapped and put back rather than a second generator being
-     * built: the router is a shared service, PHP handles one request at a time,
-     * and `finally` means an exception cannot leave it pointing at the wrong site.
+     * One refusal, shared by both actions, so a link that has been used cannot
+     * answer differently depending on which one was asked.
      */
-    private function linkFor(string $token): string
+    private function refuse(): Response
     {
-        $original = $this->urlGenerator->getContext();
-        $this->urlGenerator->setContext(RequestContext::fromUri($this->siteUri));
-
-        try {
-            return $this->urlGenerator->generate(
-                'password_reset_complete',
-                ['token' => $token],
-                UrlGeneratorInterface::ABSOLUTE_URL,
-            );
-        } finally {
-            $this->urlGenerator->setContext($original);
-        }
+        return $this->render(
+            'public/security/reset_refused.html.twig',
+            [],
+            new Response(status: Response::HTTP_NOT_FOUND),
+        );
     }
 }

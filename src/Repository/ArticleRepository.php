@@ -15,6 +15,8 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
+use function in_array;
+
 /**
  * @extends ServiceEntityRepository<Article>
  */
@@ -50,6 +52,35 @@ final class ArticleRepository extends ServiceEntityRepository implements Slugged
             ->getOneOrNullResult();
 
         return $result instanceof Article ? $result : null;
+    }
+
+    /**
+     * Just the two columns a sitemap entry is made of, newest first.
+     *
+     * Not a micro-optimisation. The document may hold fifty thousand addresses,
+     * and `findPublished()` would hydrate fifty thousand managed articles —
+     * every body, every excerpt, each with its original-data snapshot in the
+     * identity map — to print a slug and a date. On an unauthenticated route
+     * anybody may request as often as they like, that is the difference between
+     * a large response and a dead worker. The security pass before the release
+     * raised it, correctly, as this feature having *widened* the old ten-thousand
+     * cap rather than only having bounded what was unbounded.
+     *
+     * `getArrayResult()` rather than partial entities: a partial object still
+     * enters the identity map and still pretends to be an article.
+     *
+     * @return list<array{slug: string, updatedAt: DateTimeImmutable}> newest first
+     */
+    public function findPublishedAddresses(int $limit): array
+    {
+        /** @var list<array{slug: string, updatedAt: DateTimeImmutable}> $rows */
+        $rows = $this->publishedQuery()
+            ->select(self::ALIAS.'.slug', self::ALIAS.'.updatedAt')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+
+        return $rows;
     }
 
     /**
@@ -309,6 +340,68 @@ final class ArticleRepository extends ServiceEntityRepository implements Slugged
     public function countByAuthor(User $author): int
     {
         return $this->count(['author' => $author]);
+    }
+
+    /**
+     * A page of the articles a particular person may see, newest first.
+     *
+     * **This is `ArticleVoter::canView()` written as a query, and the two must
+     * not drift.** The administration list used to load the whole table and ask
+     * the voter about every row, which was correct and unbounded; a listing
+     * cannot be cut into pages while it is filtered afterwards, because twenty
+     * fetched rows would show as six.
+     *
+     * The rule, from the voter: anybody may see published work, because that is
+     * what published means. Anything else is visible to the editorial roles, and
+     * to its own author — but only while that author still holds `ROLE_AUTHOR`,
+     * since an account whose role was revoked still owns everything it wrote and
+     * must not keep the permissions that came with it.
+     *
+     * `ArticleVisibilityMatchesTheVoterTest` runs this and the voter over the
+     * same articles for every combination of roles and ownership and asserts the
+     * two answers are identical. That test is the reason this duplication is
+     * safe; without it, the query would quietly become the real rule.
+     *
+     * The author and the section are fetched with the article because the screen
+     * shows both on every row, and a lazy association there is a query per row.
+     *
+     * @return list<Article> newest first
+     */
+    public function findPageForViewer(User $viewer, int $limit, int $offset): array
+    {
+        $query = $this->createQueryBuilder(self::ALIAS)
+            ->addSelect('author', 'category')
+            ->innerJoin(self::ALIAS.'.author', 'author')
+            ->leftJoin(self::ALIAS.'.category', 'category')
+            ->orderBy(self::ALIAS.'.createdAt', 'DESC')
+            ->addOrderBy(self::ALIAS.'.id', 'DESC')
+            ->setMaxResults($limit)
+            ->setFirstResult($offset);
+
+        $roles = $viewer->getRoles();
+        $isEditorial = in_array(User::ROLE_EDITOR, $roles, true)
+            || in_array(User::ROLE_ADMIN, $roles, true);
+
+        if (!$isEditorial) {
+            if (in_array(User::ROLE_AUTHOR, $roles, true)) {
+                $query
+                    ->andWhere($query->expr()->orX(
+                        self::ALIAS.'.status = :published',
+                        self::ALIAS.'.author = :viewer',
+                    ))
+                    ->setParameter('viewer', $viewer);
+            } else {
+                // Published work and nothing else — including their own drafts,
+                // if they wrote any before their role was taken away. Ownership
+                // without the author role grants nothing, which is what
+                // ArticleVoter::isOwningAuthor says and the reason it says it.
+                $query->andWhere(self::ALIAS.'.status = :published');
+            }
+
+            $query->setParameter('published', ContentStatus::Published);
+        }
+
+        return array_values($query->getQuery()->getResult());
     }
 
     private function neighbour(Article $article, string $comparison, string $direction): ?Article

@@ -11,6 +11,7 @@ use App\Search\SiteSearch;
 use function array_map;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -57,6 +58,11 @@ final class SearchSuggestionController extends AbstractController
 
     public function __construct(
         private readonly SiteSearch $search,
+        // Named through #[Target] rather than by the parameter's own name.
+        // Symfony registers one limiter service per configured name and, since
+        // 8.1, matching it on the argument name alone is deprecated — the
+        // attribute says which limiter is meant instead of inferring it.
+        #[Target('search')]
         private readonly RateLimiterFactoryInterface $searchLimiter,
     ) {
     }

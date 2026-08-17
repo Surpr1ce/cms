@@ -39,8 +39,15 @@ const SITE = (process.argv[2] ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
  * The development site is slow — the profiler runs on every request — so the
  * waits here are generous rather than tuned. A check that fails intermittently
  * is worse than one that takes a minute.
+ *
+ * SETTLE_MS is what a page is given *after* it says it is ready; the readiness
+ * itself is waited for rather than slept through, in `goTo()`. A fixed sleep was
+ * how this file reported five false failures against `php -S`, which serves one
+ * request at a time: the module graph had not finished loading, so nothing had
+ * been enhanced yet and the report blamed the enhancement.
  */
-const SETTLE_MS = 6000;
+const READY_MS = 40_000;
+const SETTLE_MS = 1500;
 const REQUEST_MS = 4000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -144,8 +151,32 @@ async function evaluate(expression) {
     return message.result?.result?.value;
 }
 
+/**
+ * Navigates, then waits for the page to have run its scripts rather than for a
+ * fixed number of seconds.
+ *
+ * `window.Turbo` is the signal: it exists once `app.js` has been imported, and
+ * `app.js` is what enhances the search boxes and the editor. Waiting for the
+ * document alone is not enough — `readyState` reaches `complete` while a module
+ * graph is still being fetched, which on a single-request-at-a-time server is
+ * several seconds after the HTML arrived.
+ */
 async function goTo(path) {
     await send('Page.navigate', { url: SITE + path });
+
+    for (let waited = 0; waited < READY_MS; waited += 250) {
+        const ready = await evaluate(
+            `document.readyState === 'complete' && typeof window.Turbo === 'object'`,
+        );
+
+        if (true === ready) {
+            break;
+        }
+
+        await sleep(250);
+    }
+
+    // Whatever runs on turbo:load has not necessarily run when Turbo appears.
     await sleep(SETTLE_MS);
 }
 

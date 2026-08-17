@@ -9,6 +9,7 @@ use App\Form\Command\LabelCommand;
 use App\Form\LabelType;
 use App\Repository\TagRepository;
 use App\Security\AdministrationVoter;
+use App\Service\Pagination\Paginator;
 use App\Service\Taxonomy\TaxonomyEditor;
 
 use function sprintf;
@@ -36,16 +37,26 @@ final class LabelController extends AbstractController
     public function __construct(
         private readonly TagRepository $labels,
         private readonly TaxonomyEditor $editor,
+        private readonly Paginator $paginator,
     ) {
     }
 
     #[Route('', name: 'admin_label_index', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $this->denyAccessUnlessGranted(AdministrationVoter::MANAGE_TAXONOMY);
 
+        // Labels are a flat list, so unlike the sections screen there is nothing
+        // structural to keep whole across a page boundary.
+        $number = Paginator::pageNumberFrom($request->query->get('page'));
+
+        $fetched = $this->labels->findPage(
+            $this->paginator->fetchLimitFor(),
+            $this->paginator->offsetFor($number),
+        );
+
         return $this->render('admin/label/index.html.twig', [
-            'labels' => $this->labels->findAllOrdered(),
+            'page' => $this->paginator->paginate($fetched, $number),
         ]);
     }
 

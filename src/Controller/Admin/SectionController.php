@@ -49,6 +49,20 @@ final class SectionController extends AbstractController
     ) {
     }
 
+    /**
+     * The one administration listing feature 019 left unpaginated, on purpose.
+     *
+     * This screen renders a tree, and a tree cut across a page boundary is not a
+     * tree: a subsection would appear at the top of page two with no parent above
+     * it, indented under nothing. Paginating it properly means paginating roots
+     * and fetching each one's children, which is a different query and a
+     * different screen.
+     *
+     * Sections are structural and few by nature — they are the site's navigation,
+     * so a site with hundreds of them has a problem pagination would only hide.
+     * `findAllOrdered()` is therefore left as it is, and the fact that it is
+     * unbounded is written here rather than discovered.
+     */
     #[Route('', name: 'admin_section_index', methods: ['GET'])]
     public function index(): Response
     {

@@ -12,6 +12,7 @@ use App\Security\AdministrationVoter;
 use App\Service\Media\MediaDeleter;
 use App\Service\Media\MediaUploader;
 use App\Service\Media\UploadedFileValidator;
+use App\Service\Pagination\Paginator;
 use Doctrine\ORM\EntityManagerInterface;
 
 use function sprintf;
@@ -41,16 +42,28 @@ final class MediaController extends AbstractController
         private readonly MediaDeleter $deleter,
         private readonly UploadedFileValidator $validator,
         private readonly EntityManagerInterface $entityManager,
+        private readonly Paginator $paginator,
     ) {
     }
 
     #[Route('', name: 'admin_media_index', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $this->denyAccessUnlessGranted(AdministrationVoter::MANAGE_MEDIA);
 
+        $number = Paginator::pageNumberFrom($request->query->get('page'));
+
+        // A page rather than the cap of a hundred this used to ask for. A cap is
+        // the worst of the three options: the hundred-and-first file was simply
+        // absent, with nothing on the screen to say a hundred was all it was
+        // showing.
+        $fetched = $this->media->findPage(
+            $this->paginator->fetchLimitFor(),
+            $this->paginator->offsetFor($number),
+        );
+
         return $this->render('admin/media/index.html.twig', [
-            'files' => $this->media->findRecent(100),
+            'page' => $this->paginator->paginate($fetched, $number),
             'maximumBytes' => $this->validator->maximumBytes(),
         ]);
     }

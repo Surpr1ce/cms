@@ -13,6 +13,7 @@ use App\Repository\UserRepository;
 use App\Security\AdministrationVoter;
 use App\Service\Account\AccountEditor;
 use App\Service\Account\UserDeleter;
+use App\Service\Pagination\Paginator;
 
 use function sprintf;
 
@@ -49,16 +50,24 @@ final class AccountController extends AbstractController
         private readonly UserRepository $accounts,
         private readonly AccountEditor $editor,
         private readonly UserDeleter $deleter,
+        private readonly Paginator $paginator,
     ) {
     }
 
     #[Route('', name: 'admin_accounts_index', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $this->denyAccessUnlessGranted(AdministrationVoter::MANAGE_ACCOUNTS);
 
+        $number = Paginator::pageNumberFrom($request->query->get('page'));
+
+        $fetched = $this->accounts->findPage(
+            $this->paginator->fetchLimitFor(),
+            $this->paginator->offsetFor($number),
+        );
+
         return $this->render('admin/accounts/index.html.twig', [
-            'accounts' => $this->accounts->findBy([], ['email' => 'ASC']),
+            'page' => $this->paginator->paginate($fetched, $number),
         ]);
     }
 

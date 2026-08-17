@@ -42,6 +42,22 @@ file and rejects what it should.
 **Functional** — for every route: the happy path, the anonymous-user redirect,
 and the wrong-role 403. Admin routes without all three are considered untested.
 
+**Architecture** — `tests/Unit/Architecture/` asserts the rules `CLAUDE.md`
+states in prose, because prose is not a gate. It boots nothing and reads the
+source as text, so it runs in a tenth of a second inside the unit suite:
+
+| File | What it fails on |
+| --- | --- |
+| `LayeringTest` | an import that points outwards — HTTP or Twig inside `Entity/`, `Repository/`, `Search/` or `Service/`; a repository leaking a `QueryBuilder`; a query built in a controller; a `Form/Command` importing anything it could act with; a directory under `src/` with no row in the matrix |
+| `DesignPrinciplesTest` | an action over 25 lines of code; a class over seven constructor dependencies; a reach for the container; mutable static state; a class in a ruled layer that is neither `final` nor deliberately `abstract` |
+
+Both encode the *reason* for each rule beside it, and each exception to a rule is
+a commented decision rather than a hole. They catch the crossing that is
+declared, which is how a boundary is broken in practice; the judgement calls a
+text scan cannot make — a rule living in the wrong layer, an invariant bypassed,
+the same rule written twice with nothing tying the copies together — are what
+`.claude/agents/architecture-guardian.md` is for, run before a merge.
+
 ## Rules
 
 - One behaviour per test method, named for the behaviour (`testItRejectsPublishingWithoutContent`).
@@ -58,6 +74,7 @@ composer test                # full suite
 composer test:coverage       # plus HTML report in var/coverage
 vendor/bin/phpunit --testsuite unit
 vendor/bin/phpunit --filter testItRejectsPublishingWithoutContent
+vendor/bin/phpunit tests/Unit/Architecture     # the layer rules alone, no database
 ```
 
 CI runs the suite against a PostgreSQL service container on every push and pull

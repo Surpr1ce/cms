@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\ContentStatus;
 use App\Entity\Media;
 use App\Entity\Page;
+use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -45,6 +46,28 @@ final class PageRepository extends ServiceEntityRepository implements SluggedRep
     }
 
     /**
+     * The two columns a sitemap entry is made of.
+     *
+     * See `ArticleRepository::findPublishedAddresses()` for why the sitemap reads
+     * columns rather than entities: the document is bounded at fifty thousand
+     * addresses, and hydrating fifty thousand pages to print a slug and a date is
+     * how an unauthenticated route becomes a way to exhaust memory.
+     *
+     * @return list<array{slug: string, updatedAt: DateTimeImmutable}>
+     */
+    public function findPublishedAddresses(int $limit): array
+    {
+        /** @var list<array{slug: string, updatedAt: DateTimeImmutable}> $rows */
+        $rows = $this->publishedQuery()
+            ->select(self::ALIAS.'.slug', self::ALIAS.'.updatedAt')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+
+        return $rows;
+    }
+
+    /**
      * @return list<Page> newest first
      */
     public function findPublished(int $limit = 50, int $offset = 0): array
@@ -61,6 +84,41 @@ final class PageRepository extends ServiceEntityRepository implements SluggedRep
     public function countPublished(): int
     {
         return $this->count(['status' => ContentStatus::Published]);
+    }
+
+    /**
+     * One page of pages, whatever their status, for the administration screen.
+     *
+     * In menu order and then by title, which is the order the screen has always
+     * shown, with the identifier as the tiebreak — two pages sharing an order and
+     * a title would otherwise swap between requests and pagination would repeat
+     * or skip one.
+     *
+     * Unlike the article list this needs no viewer: `PageVoter` grants nothing to
+     * an author and everything to the editorial roles, so anybody who may open
+     * this screen at all may see every row on it.
+     *
+     * The parent is fetched with the page because the screen shows it in a column,
+     * and a lazy association there is one query per row — the N+1 SC-003 exists to
+     * keep out. A left join: a top-level page has no parent, and an inner one
+     * would silently drop every page that is its own top level.
+     *
+     * @return list<Page>
+     */
+    public function findPage(int $limit, int $offset): array
+    {
+        return array_values(
+            $this->createQueryBuilder('page')
+                ->addSelect('parent')
+                ->leftJoin('page.parent', 'parent')
+                ->orderBy('page.menuOrder', 'ASC')
+                ->addOrderBy('page.title', 'ASC')
+                ->addOrderBy('page.id', 'ASC')
+                ->setMaxResults($limit)
+                ->setFirstResult($offset)
+                ->getQuery()
+                ->getResult(),
+        );
     }
 
     /**

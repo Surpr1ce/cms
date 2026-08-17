@@ -17,6 +17,7 @@ use App\Service\Audit\AuditLog;
 use App\Service\Content\PageDeleter;
 use App\Service\Content\PageEditor;
 use App\Service\Content\PublicationService;
+use App\Service\Pagination\Paginator;
 use DateTimeImmutable;
 
 use function sprintf;
@@ -43,18 +44,28 @@ final class PageController extends AbstractController
         private readonly PageDeleter $deleter,
         private readonly PublicationService $publication,
         private readonly AuditLog $audit,
+        private readonly Paginator $paginator,
     ) {
     }
 
     #[Route('', name: 'admin_page_index', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         // One permission check rather than a filter per row: every page is
         // governed identically, so if the viewer may see one they may see all.
+        // That is also why this page needs no viewer-aware query where the
+        // article list does.
         $this->denyAccessUnlessGranted(PageVoter::EDIT, $this->probe());
 
+        $number = Paginator::pageNumberFrom($request->query->get('page'));
+
+        $fetched = $this->pages->findPage(
+            $this->paginator->fetchLimitFor(),
+            $this->paginator->offsetFor($number),
+        );
+
         return $this->render('admin/page/index.html.twig', [
-            'pages' => $this->pages->findBy([], ['menuOrder' => 'ASC', 'title' => 'ASC']),
+            'page' => $this->paginator->paginate($fetched, $number),
         ]);
     }
 

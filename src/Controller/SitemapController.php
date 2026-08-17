@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Repository\ArticleRepository;
-use App\Repository\CategoryRepository;
-use App\Repository\PageRepository;
-use App\Repository\TagRepository;
+use App\Service\Sitemap\SitemapAddresses;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -21,44 +18,25 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * unpublished content — because a sitemap assembled from `findAll()` and
  * filtered afterwards is how a draft ends up being announced to a search engine.
  *
- * The limit is one document. The format holds fifty thousand addresses, which is
- * far past anything this CMS will carry before somebody reconsiders how it is
- * generated at all; recorded in the specification as a limit rather than
- * engineered around.
+ * The limit is one document, and one document holds fifty thousand addresses.
+ * {@see SitemapBudget} holds that number and the arithmetic;
+ * {@see SitemapAddresses} holds which list gives up its addresses first. Neither
+ * is here, because both are decisions about content rather than about a response
+ * — before feature 019 the articles and pages were capped at ten thousand each
+ * and the sections and labels were not capped at all, so the document as a whole
+ * had no ceiling, and the pass that noticed also noticed the spend order sitting
+ * in this action where no test could reach it.
  */
 final class SitemapController extends AbstractController
 {
-    /**
-     * A high enough ceiling to mean "all of them" for a site of this size, and
-     * still a ceiling — an unbounded fetch is a way to be knocked over by
-     * anybody who asks for this address often enough.
-     */
-    private const int LIMIT = 10_000;
-
-    public function __construct(
-        private readonly ArticleRepository $articles,
-        private readonly PageRepository $pages,
-        private readonly CategoryRepository $categories,
-        private readonly TagRepository $tags,
-    ) {
+    public function __construct(private readonly SitemapAddresses $addresses)
+    {
     }
 
     #[Route('/sitemap.xml', name: 'sitemap', methods: ['GET'])]
     public function index(): Response
     {
-        $response = $this->render('public/sitemap.xml.twig', [
-            'articles' => $this->articles->findPublished(self::LIMIT),
-            'pages' => $this->pages->findPublished(self::LIMIT),
-            // Sections and labels have no publication state of their own. They
-            // are listings, and a listing of nothing is a valid empty page
-            // rather than a 404 — which is feature 002's decision, not a new
-            // one, and is why they can be listed unconditionally.
-            'categories' => $this->categories->findAllOrdered(),
-            // Labels in use only. A label nobody has applied lists nothing, and
-            // announcing an empty page to a crawler is how a site acquires a
-            // reputation for thin content.
-            'tags' => $this->tags->findInUse(),
-        ]);
+        $response = $this->render('public/sitemap.xml.twig', $this->addresses->collect());
 
         $response->headers->set('Content-Type', 'application/xml; charset=UTF-8');
 
