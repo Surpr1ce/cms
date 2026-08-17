@@ -1,26 +1,29 @@
-{% extends 'public/layout.html.twig' %}
-
-{#
-   A placeholder for the administration area feature 004 will build. It extends
-   the public layout for now because there is no administration layout yet, and
-   inventing one here would be guessing at what that feature needs.
-#}
-
-{% block title %}Administration — {{ site_name }}{% endblock %}
+{% extends 'admin/layout.html.twig' %}
 
 {% block main %}
     <h1 class="text-2xl font-semibold tracking-tight">Administration</h1>
 
-    <p class="mt-3 text-muted">
-        Signed in as {{ app.user.displayName }} ({{ app.user.email }}).
+    <p class="mt-2 text-muted">
+        Signed in as {{ app.user.displayName }}.
     </p>
 
-    <p class="mt-2 text-sm text-muted">
-        There is nothing here yet. Feature 003 fitted the lock; the screens it
-        protects arrive with feature 004.
-    </p>
+    <div class="mt-8 grid gap-4 sm:grid-cols-2">
+        <a href="{{ path('admin_article_index') }}"
+           class="rounded border border-rule p-5 no-underline hover:border-accent">
+            <span class="block font-semibold text-ink">Articles</span>
+            <span class="mt-1 block text-sm text-muted">Write, edit and publish.</span>
+        </a>
 
-    <form method="post" action="{{ path('logout') }}" class="mt-8">
-        <button type="submit" class="text-sm text-accent hover:underline">Sign out</button>
-    </form>
+        {% if is_granted('PAGE_EDIT', page_probe()) %}
+            <a href="{{ path('admin_page_index') }}"
+               class="rounded border border-rule p-5 no-underline hover:border-accent">
+                <span class="block font-semibold text-ink">Pages</span>
+                <span class="mt-1 block text-sm text-muted">Standalone pages and the site menu.</span>
+            </a>
+        {% endif %}
+    </div>
+
+    <p class="mt-8 text-sm text-muted">
+        Sections, labels, files and accounts do not have screens yet.
+    </p>
 {% endblock %}

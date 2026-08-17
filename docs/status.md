@@ -74,10 +74,34 @@ revoked would have kept every permission over everything it wrote; and two tests
 of role revocation passed while proving nothing, because they wrote through a
 discarded entity manager. Both are recorded in the feature's `tasks.md`.
 
+### Feature 004 — content administration
+
+Branch `004-content-administration`. Articles and pages can now be written,
+published and read without leaving the browser.
+
+| Area | State |
+| --- | --- |
+| Screens | Article list, create, edit, delete and the four transitions; the same for pages |
+| **Markup sanitising** | **Implemented and proven.** `symfony/html-sanitizer` behind `ContentSanitiser`, applied on the way in. 23 hostile inputs neutralised, 15 forms of legitimate markup preserved, asserted on what is **stored** — see [ADR 10](adr/0010-sanitise-markup-on-the-way-in.md) |
+| Permissions | Every screen asks the feature-003 voters about the specific content. Refusals are tested by submitting the address directly, not by looking for an absent button |
+| Slug regeneration | **The gap feature 001 recorded is closed.** Renaming a draft moves its address; renaming a published article does not |
+| New dependency | `symfony/html-sanitizer` — the first since the skeleton |
+| Whole project | **597 tests, 1232 assertions, passing** |
+
+**Four defects the tests found**: the sidebar form fields were outside the
+`<form>` element and the CSRF token was never rendered, so every submission
+returned 422 silently; `setParameters()` needs an `ArrayCollection` in ORM 3; and
+two test assertions were wrong about their own requirements. All recorded in the
+feature's `tasks.md`.
+
 ## Not done
 
 | Area | State |
 | --- | --- |
+| Screens for sections, labels, files and accounts | Not started — the generic CRUD the conventions assign to EasyAdmin |
+| Optimistic locking | **Not implemented.** Two people editing the same article: the second save wins, silently |
+| A rich-text editor | Not started, deliberately. The body is a text area containing markup, so sanitising does not depend on an editor behaving |
+| A content security policy | Not started. Worth adding as a second layer on top of sanitising, not instead of it |
 | **Rate limiting on the sign-in form** | **Not implemented.** Nothing counts how many times somebody tries the handle. Listed prominently because "the administration area is closed" invites the assumption that it is also guarded, and it is not |
 | Registration, password reset, password change, email | Not started |
 | "Remember me", two-factor, session expiry policy | Not started |
@@ -111,12 +135,13 @@ feature.
 - **`User::$password` starts empty.** Symfony's hasher needs the user object to
   choose a hasher, so the account exists before its hash does. An empty hash
   matches nothing, so the intermediate state cannot authenticate.
-- **Content markup is rendered unsanitised.** Article and page bodies are stored
-  as supplied and rendered as markup, which is what FR-024 of feature 002 asks
-  for. Nothing sanitises them. This is safe only because there is no editor yet
-  and the only author is a developer loading fixtures. **Whichever feature first
-  lets somebody paste markup into the CMS inherits this obligation**, and it is
-  the single most important thing to get right in the administration feature.
+- ~~**Content markup is rendered unsanitised.**~~ **Closed by feature 004.**
+  Everything stored through an administration screen is sanitised on the way in,
+  so what a reader receives is what was reviewed. Two residual notes: content
+  written before feature 004 — the development fixtures — never went through
+  that path, and tightening the allow-list later will not retroactively clean
+  what is already stored. Both are in
+  [ADR 10](adr/0010-sanitise-markup-on-the-way-in.md).
 - **A page can never be called `articles`, `sections`, `topics`, `api` or
   `admin`**, and any future root-level prefix adds to that list. See
   [ADR 8](adr/0008-public-address-scheme.md).

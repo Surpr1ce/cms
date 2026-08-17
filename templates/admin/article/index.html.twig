@@ -1,0 +1,65 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block main %}
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <h1 class="text-2xl font-semibold tracking-tight">Articles</h1>
+
+        <a href="{{ path('admin_article_new') }}"
+           class="rounded bg-ink px-4 py-2 text-sm text-white no-underline hover:bg-accent">
+            New article
+        </a>
+    </div>
+
+    {% if articles is empty %}
+        <p class="mt-8 text-muted">Nothing here yet.</p>
+    {% else %}
+        <div class="mt-6 overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+                <thead>
+                    <tr class="border-b border-rule text-left">
+                        <th class="py-2 pr-4 font-semibold">Title</th>
+                        <th class="py-2 pr-4 font-semibold">Status</th>
+                        <th class="py-2 pr-4 font-semibold">Author</th>
+                        <th class="py-2 pr-4 font-semibold">Published</th>
+                        <th class="py-2 font-semibold"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for article in articles %}
+                        <tr class="border-b border-rule/60">
+                            <td class="py-2 pr-4">
+                                {#
+                                   A link only where the viewer may actually open
+                                   it. The listing shows published work by other
+                                   authors so the list is not confusing, but an
+                                   author cannot edit it — so it is not a link.
+                                #}
+                                {% if is_granted('ARTICLE_EDIT', article) %}
+                                    <a href="{{ path('admin_article_edit', { id: article.id }) }}"
+                                       class="font-medium text-ink no-underline hover:underline">{{ article.title }}</a>
+                                {% else %}
+                                    <span class="font-medium text-muted">{{ article.title }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 pr-4">
+                                <span class="rounded-full border border-rule px-2 py-0.5 text-xs text-muted">
+                                    {{ article.status.label }}
+                                </span>
+                            </td>
+                            <td class="py-2 pr-4 text-muted">{{ article.author.displayName }}</td>
+                            <td class="py-2 pr-4 text-muted">
+                                {{ article.publishedAt ? article.publishedAt|date('j M Y') : '—' }}
+                            </td>
+                            <td class="py-2 text-right">
+                                {% if article.published %}
+                                    <a href="{{ path('article_show', { slug: article.slug }) }}"
+                                       class="text-xs text-accent no-underline hover:underline">View</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}
