@@ -33,14 +33,30 @@ final class AdministrationVoter extends Voter
 
     public const string DELETE_ACCOUNT = 'DELETE_ACCOUNT';
 
+    /**
+     * The three capability attributes are answered whatever subject arrives,
+     * including none.
+     *
+     * The first version required `null === $subject` for them, reasoning that a
+     * capability question carrying a subject was a question this voter had not
+     * been asked. That was too strict, and feature 007 found out how: EasyAdmin
+     * passes a subject when it checks an action permission, so every one of its
+     * screens was silently denied — the voter abstained, nothing else answered,
+     * and an administrator could not reach the account list.
+     *
+     * The correction is the honest reading. Whether somebody may manage accounts
+     * does not depend on any subject, so a subject cannot change the answer and
+     * refusing to answer because one was supplied protects nothing. DELETE_ACCOUNT
+     * is different — it genuinely needs to know *which* account — and stays
+     * strict.
+     */
     protected function supports(string $attribute, mixed $subject): bool
     {
         if (self::DELETE_ACCOUNT === $attribute) {
             return $subject instanceof User;
         }
 
-        return in_array($attribute, [self::MANAGE_TAXONOMY, self::MANAGE_MEDIA, self::MANAGE_ACCOUNTS], true)
-            && null === $subject;
+        return in_array($attribute, [self::MANAGE_TAXONOMY, self::MANAGE_MEDIA, self::MANAGE_ACCOUNTS], true);
     }
 
     protected function voteOnAttribute(

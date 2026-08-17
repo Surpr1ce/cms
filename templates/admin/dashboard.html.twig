@@ -29,9 +29,14 @@
                 <span class="mt-1 block text-sm text-muted">Upload images and documents.</span>
             </a>
         {% endif %}
+        {% if is_granted('MANAGE_TAXONOMY') %}
+            <a href="{{ path('admin_manage') }}"
+               class="rounded border border-rule p-5 no-underline hover:border-accent">
+                <span class="block font-semibold text-ink">Manage</span>
+                <span class="mt-1 block text-sm text-muted">
+                    Sections, labels{% if is_granted('MANAGE_ACCOUNTS') %} and accounts{% endif %}.
+                </span>
+            </a>
+        {% endif %}
     </div>
-
-    <p class="mt-8 text-sm text-muted">
-        Sections, labels and accounts do not have screens yet.
-    </p>
 {% endblock %}

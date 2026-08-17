@@ -13,6 +13,7 @@ use ReflectionProperty;
 
 use function sprintf;
 
+use stdClass;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 
@@ -117,21 +118,43 @@ final class AdministrationVoterTest extends TestCase
     }
 
     /**
-     * A capability question carrying a subject is not the question this voter
-     * answers, and it abstains rather than guessing.
+     * A capability question is answered whatever subject comes with it.
+     *
+     * This test asserted the opposite until feature 007. The voter abstained
+     * when a capability question carried a subject, on the reasoning that it had
+     * not been asked that question — and every EasyAdmin screen was silently
+     * denied as a result, because EasyAdmin passes a subject when it checks an
+     * action permission. Nothing else answered, so abstaining meant refusing.
+     *
+     * Whether somebody may manage accounts does not depend on a subject, so a
+     * subject cannot change the answer and declining to give one protected
+     * nothing. DELETE_ACCOUNT is the case that genuinely needs to know *which*
+     * account, and the tests above keep it strict.
      */
-    public function testACapabilityQuestionWithASubjectIsAbstainedFrom(): void
+    public function testACapabilityQuestionIsAnsweredWhateverSubjectComesWithIt(): void
     {
         $roles = [User::ROLE_ADMIN];
+        $token = new UsernamePasswordToken($this->account(1, $roles), 'main', $roles);
 
-        self::assertSame(
-            VoterInterface::ACCESS_ABSTAIN,
-            new AdministrationVoter()->vote(
-                new UsernamePasswordToken($this->account(1, $roles), 'main', $roles),
-                $this->account(2, []),
-                [AdministrationVoter::MANAGE_ACCOUNTS],
-            ),
-        );
+        foreach ([null, $this->account(2, []), new stdClass(), 'anything'] as $subject) {
+            self::assertSame(
+                VoterInterface::ACCESS_GRANTED,
+                new AdministrationVoter()->vote($token, $subject, [AdministrationVoter::MANAGE_ACCOUNTS]),
+            );
+        }
+    }
+
+    public function testACapabilityIsStillRefusedToSomebodyWithoutIt(): void
+    {
+        $roles = [User::ROLE_EDITOR];
+        $token = new UsernamePasswordToken($this->account(1, $roles), 'main', $roles);
+
+        foreach ([null, $this->account(2, []), new stdClass()] as $subject) {
+            self::assertSame(
+                VoterInterface::ACCESS_DENIED,
+                new AdministrationVoter()->vote($token, $subject, [AdministrationVoter::MANAGE_ACCOUNTS]),
+            );
+        }
     }
 
     public function testAnUnknownCapabilityIsAbstainedFrom(): void

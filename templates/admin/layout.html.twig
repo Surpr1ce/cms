@@ -29,6 +29,9 @@
                     {% if is_granted('MANAGE_MEDIA') %}
                         <a href="{{ path('admin_media_index') }}" class="text-white/80 no-underline hover:text-white">Files</a>
                     {% endif %}
+                    {% if is_granted('MANAGE_TAXONOMY') %}
+                        <a href="{{ path('admin_manage') }}" class="text-white/80 no-underline hover:text-white">Manage</a>
+                    {% endif %}
                     <a href="{{ path('home') }}" class="text-white/80 no-underline hover:text-white">View site</a>
                 </nav>
 
