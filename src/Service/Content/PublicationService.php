@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\Content;
 
+use App\Entity\AuditAction;
 use App\Entity\PublishableContent;
 use App\Exception\DomainException;
+use App\Service\Audit\AuditLog;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
 
@@ -30,6 +32,7 @@ final readonly class PublicationService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private ClockInterface $clock,
+        private AuditLog $audit,
     ) {
     }
 
@@ -40,6 +43,11 @@ final readonly class PublicationService
     {
         $content->publish($this->clock->now());
         $this->entityManager->flush();
+
+        // Recorded after the flush, never before. A refused transition throws
+        // above and reaches nothing here, which is FR-006: an action that did
+        // not happen is not recorded.
+        $this->audit->record(AuditAction::ContentPublished, $content->getTitle());
     }
 
     /**
@@ -49,6 +57,8 @@ final readonly class PublicationService
     {
         $content->unpublish();
         $this->entityManager->flush();
+
+        $this->audit->record(AuditAction::ContentUnpublished, $content->getTitle());
     }
 
     /**
@@ -58,6 +68,8 @@ final readonly class PublicationService
     {
         $content->archive();
         $this->entityManager->flush();
+
+        $this->audit->record(AuditAction::ContentArchived, $content->getTitle());
     }
 
     /**
@@ -67,6 +79,8 @@ final readonly class PublicationService
     {
         $content->restore();
         $this->entityManager->flush();
+
+        $this->audit->record(AuditAction::ContentRestored, $content->getTitle());
     }
 
     /**

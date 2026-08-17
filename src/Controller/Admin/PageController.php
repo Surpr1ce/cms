@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Entity\AuditAction;
 use App\Entity\Page;
 use App\Exception\ContentWasChangedElsewhere;
 use App\Exception\DomainException;
@@ -12,6 +13,7 @@ use App\Form\Command\PageCommand;
 use App\Form\PageType;
 use App\Repository\PageRepository;
 use App\Security\PageVoter;
+use App\Service\Audit\AuditLog;
 use App\Service\Content\PageDeleter;
 use App\Service\Content\PageEditor;
 use App\Service\Content\PublicationService;
@@ -40,6 +42,7 @@ final class PageController extends AbstractController
         private readonly PageEditor $editor,
         private readonly PageDeleter $deleter,
         private readonly PublicationService $publication,
+        private readonly AuditLog $audit,
     ) {
     }
 
@@ -142,6 +145,11 @@ final class PageController extends AbstractController
 
         try {
             $this->deleter->delete($page);
+
+            // Inside the try, after the delete: a refusal below records nothing,
+            // which is FR-006 — an action that did not happen is not an action.
+            $this->audit->record(AuditAction::ContentDeleted, $title);
+
             $this->addFlash('success', sprintf('“%s” was deleted.', $title));
 
             return $this->redirectToRoute('admin_page_index');

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Service\Account;
 
+use App\Entity\AuditAction;
 use App\Entity\PasswordResetRequest;
 use App\Entity\User;
 use App\Repository\PasswordResetRequestRepository;
 use App\Repository\UserRepository;
+use App\Service\Audit\AuditLog;
 
 use function bin2hex;
 
@@ -47,6 +49,7 @@ final readonly class PasswordResetService
         private PasswordResetRequestRepository $requests,
         private UserPasswordHasherInterface $passwordHasher,
         private ClockInterface $clock,
+        private AuditLog $audit,
     ) {
     }
 
@@ -120,6 +123,11 @@ final readonly class PasswordResetService
 
         $this->entityManager->flush();
 
+        // That the credential moved, never what it moved to. Nobody is signed in
+        // at this point, so the entry records no actor and names whose password
+        // it was — which is the half a reader needs.
+        $this->audit->record(AuditAction::PasswordChanged, $account->getEmail());
+
         return $account;
     }
 
@@ -138,6 +146,8 @@ final readonly class PasswordResetService
 
         $account->setPassword($this->passwordHasher->hashPassword($account, $newPassword));
         $this->entityManager->flush();
+
+        $this->audit->record(AuditAction::PasswordChanged, $account->getEmail());
 
         return true;
     }

@@ -13,6 +13,7 @@ use App\Repository\ArticleRepository;
 use App\Repository\MediaRepository;
 use App\Repository\UserRepository;
 use App\Service\Account\UserDeleter;
+use App\Service\Audit\AuditLog;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -44,7 +45,7 @@ final class UserDeleterTest extends KernelTestCase
         $media = self::getContainer()->get(MediaRepository::class);
         self::assertInstanceOf(MediaRepository::class, $media);
 
-        $this->deleter = new UserDeleter($this->entityManager(), $this->articles(), $media);
+        $this->deleter = new UserDeleter($this->entityManager(), $this->articles(), $media, $this->auditLog());
     }
 
     public function testAnAccountOwningNothingIsDeleted(): void
@@ -206,5 +207,20 @@ final class UserDeleterTest extends KernelTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
 
         return $entityManager;
+    }
+
+    /**
+     * The real service, from the container.
+     *
+     * A double would prove that the deleter calls something; the point of
+     * these tests is what is left behind afterwards, and an entry in the
+     * database is part of that.
+     */
+    private function auditLog(): AuditLog
+    {
+        $audit = self::getContainer()->get(AuditLog::class);
+        self::assertInstanceOf(AuditLog::class, $audit);
+
+        return $audit;
     }
 }

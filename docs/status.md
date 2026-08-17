@@ -317,6 +317,26 @@ in as many words. This CMS keeps no registry of open sessions, so it cannot end
 them — and a change that quietly implied otherwise would protect less than
 somebody would assume.
 
+### Feature 014 — audit log
+
+Branch `014-audit-log`. The last row on the "not done" list that was a missing
+capability rather than a deliberate absence or an optimisation.
+
+| Area | State |
+| --- | --- |
+| What is recorded | The four publication transitions, content deleted, a file deleted, an account created or deleted, permissions changed, and a password changed |
+| What is not | Editing an article records nothing. A log of every save is a log nobody reads and a database twice the size to store that somebody fixed a typo |
+| Reading it | `/admin/log`, newest first, paged, behind `MANAGE_ACCOUNTS` — reading who did what is the same kind of authority as deciding who may do it |
+| Outliving its subject | The subject is text, not a reference. An entry about a deleted article still names it, which is the only case anybody actually reaches for a log in |
+| Outliving its actor | The account is kept twice: as a relation severed on deletion, and as the address in text. Deleting somebody leaves their history readable and attributed |
+| Permanence | No route under `/admin/log` accepts anything but `GET`, and there is no service method that changes or removes an entry. Asserted by walking the router rather than promised |
+| Failure | Writing an entry cannot undo what it records. If the write fails the article is still published and the failure goes to the application log |
+| Whole project | **865 tests, 2545 assertions, passing** |
+
+**Recorded in the services, not by a Doctrine lifecycle listener.** A listener
+would catch every write automatically, which sounds better and is worse: it would
+know neither what a change *meant* nor who made it.
+
 ## Not done
 
 | Area | State |
@@ -340,7 +360,9 @@ somebody would assume.
 | Any email other than a reset link | Not started. Nothing notifies anybody of anything else, and `MAILER_DSN` is `null://null` until somebody configures it |
 | Confirming a change of email address | Not started. An administrator can change an account's address on the accounts screen, and nothing verifies the new one belongs to anybody |
 | "Remember me", two-factor, session expiry policy | Not started |
-| Audit log of who did what | Not started |
+| Filtering the log | Not started. Newest first and paged is enough to be useful; filtering by person or by kind is a real improvement and its own work |
+| Recording *what changed* in an edit | Deliberately absent. The log records decisions, not keystrokes; showing an editor the difference between two versions is feature 009's open follow-up rather than this one's |
+| Expiring old entries | **Nothing expires, on purpose.** A record that deletes itself after ninety days cannot answer a question asked on the ninety-first. The table grows, and that is what a record does |
 | `symfony-reviewer` pass on features 001–007 | **Open.** The constitution requires it at phase 4 of the workflow; none of the sessions that built these features could spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md` |
 | Rate limiting on search | **Not implemented.** A public, unauthenticated, unbounded-cost endpoint, and the cheapest thing on the site to abuse. The query is bounded in length and the results in number, which is not the same as a limit. Belongs with the caching work below |
 | Snippet highlighting in results | Not started. A result shows the same summary the rest of the site shows, rather than the sentence the match was in |

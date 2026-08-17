@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Entity\AuditAction;
 use App\Entity\User;
 use App\Security\AdministrationVoter;
 use App\Service\Account\UserDeleter;
+use App\Service\Audit\AuditLog;
+
+use function array_filter;
+use function array_values;
+
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -20,6 +26,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 use function is_array;
 use function is_string;
+use function sort;
 
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\HttpFoundation\Request;
@@ -50,6 +57,7 @@ final class UserCrudController extends AbstractCrudController
     public function __construct(
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly UserDeleter $deleter,
+        private readonly AuditLog $audit,
     ) {
     }
 
@@ -122,15 +130,32 @@ final class UserCrudController extends AbstractCrudController
         }
 
         parent::persistEntity($entityManager, $entityInstance);
+
+        $this->audit->record(AuditAction::AccountCreated, $entityInstance->getEmail());
     }
 
     public function updateEntity(EntityManagerInterface $entityManager, mixed $entityInstance): void
     {
-        if ($entityInstance instanceof User) {
-            $this->applySubmittedPassword($entityInstance);
+        if (!$entityInstance instanceof User) {
+            parent::updateEntity($entityManager, $entityInstance);
+
+            return;
         }
 
+        // Read before the save, because afterwards there is nothing left to
+        // compare against.
+        $before = $this->rolesOf($entityInstance, $entityManager);
+
+        $this->applySubmittedPassword($entityInstance);
+
         parent::updateEntity($entityManager, $entityInstance);
+
+        // Only permissions, and only when they actually changed. An entry for
+        // every edit of a display name would bury the one entry anybody ever
+        // needs to find — the moment somebody was granted authority.
+        if ($before !== $this->sortedRoles($entityInstance)) {
+            $this->audit->record(AuditAction::AccountPermissionsChanged, $entityInstance->getEmail());
+        }
     }
 
     /**
@@ -155,6 +180,47 @@ final class UserCrudController extends AbstractCrudController
         $this->denyAccessUnlessGranted(AdministrationVoter::DELETE_ACCOUNT, $entityInstance);
 
         $this->deleter->delete($entityInstance);
+    }
+
+    /**
+     * The roles this account held before the current edit.
+     *
+     * Taken from Doctrine's record of what was loaded rather than from the
+     * entity, which the form has already written to by the time anything here
+     * runs.
+     *
+     * @return list<string>
+     */
+    private function rolesOf(User $account, EntityManagerInterface $entityManager): array
+    {
+        $original = $entityManager->getUnitOfWork()->getOriginalEntityData($account);
+        $roles = $original['roles'] ?? null;
+
+        return is_array($roles) ? $this->sorted(array_values(array_filter($roles, is_string(...)))) : [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function sortedRoles(User $account): array
+    {
+        return $this->sorted($account->getRoles());
+    }
+
+    /**
+     * Order is not meaning. Two lists holding the same permissions in a
+     * different order are the same permissions, and recording that as a change
+     * would be noise.
+     *
+     * @param list<string> $roles
+     *
+     * @return list<string>
+     */
+    private function sorted(array $roles): array
+    {
+        sort($roles);
+
+        return $roles;
     }
 
     /**

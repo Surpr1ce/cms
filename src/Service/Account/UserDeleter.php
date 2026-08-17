@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Service\Account;
 
+use App\Entity\AuditAction;
 use App\Entity\User;
 use App\Exception\UserStillOwnsContent;
 use App\Repository\ArticleRepository;
 use App\Repository\MediaRepository;
+use App\Service\Audit\AuditLog;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -31,6 +33,7 @@ final readonly class UserDeleter
         private EntityManagerInterface $entityManager,
         private ArticleRepository $articles,
         private MediaRepository $media,
+        private AuditLog $audit,
     ) {
     }
 
@@ -46,8 +49,15 @@ final readonly class UserDeleter
             throw UserStillOwnsContent::with($user->getEmail(), $articleCount, $mediaCount);
         }
 
+        // Read before the row goes, because afterwards there is nothing to read
+        // it from — which is the whole reason an entry keeps a description in
+        // text rather than a reference.
+        $email = $user->getEmail();
+
         $this->entityManager->remove($user);
         $this->entityManager->flush();
+
+        $this->audit->record(AuditAction::AccountDeleted, $email);
     }
 
     /**
