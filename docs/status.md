@@ -6,6 +6,31 @@ This file records what actually exists in the codebase, as distinct from what th
 design documents describe. Documents that describe an intended design are marked
 as such at the top of the file.
 
+## Where this stands
+
+Fourteen features, all on `master`, `composer qa` green after each and CI green
+since feature 011. **865 tests, 2545 assertions.**
+
+A reader can find the site, read it, search it and subscribe to it. An editor can
+write, publish, upload, and get back in after forgetting their password. An
+administrator can manage sections, labels, accounts and files, and read a record
+of who did what. Two editors cannot silently overwrite each other, a draft is
+invisible through five different delivery mechanisms, and every response carries
+a content security policy.
+
+What remains below falls into three kinds, and the distinction matters more than
+the length of the list:
+
+- **Deliberate absences** — public registration, private files, API
+  authentication, a rich-text editor. Each is a decision with a reason recorded
+  beside it, not an omission.
+- **Optimisations and refinements** — format conversion, responsive images, page
+  caching, filtering the log, snippet highlighting. None of them is load-bearing.
+- **One real debt** — no feature has had the `symfony-reviewer` or
+  `security-auditor` pass the constitution asks for at phase 4. That is the
+  honest gap, and it is stated again in the table below rather than left to be
+  inferred.
+
 ## Done
 
 | Area | State |
@@ -363,16 +388,15 @@ know neither what a change *meant* nor who made it.
 | Filtering the log | Not started. Newest first and paged is enough to be useful; filtering by person or by kind is a real improvement and its own work |
 | Recording *what changed* in an edit | Deliberately absent. The log records decisions, not keystrokes; showing an editor the difference between two versions is feature 009's open follow-up rather than this one's |
 | Expiring old entries | **Nothing expires, on purpose.** A record that deletes itself after ninety days cannot answer a question asked on the ninety-first. The table grows, and that is what a record does |
-| `symfony-reviewer` pass on features 001–007 | **Open.** The constitution requires it at phase 4 of the workflow; none of the sessions that built these features could spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md` |
 | Rate limiting on search | **Not implemented.** A public, unauthenticated, unbounded-cost endpoint, and the cheapest thing on the site to abuse. The query is bounded in length and the results in number, which is not the same as a limit. Belongs with the caching work below |
 | Snippet highlighting in results | Not started. A result shows the same summary the rest of the site shows, rather than the sentence the match was in |
 | Search in more than English | Not started. The stemming configuration is hard-coded, matching the language the constitution requires everything to be written in |
 | The search index expression is duplicated | Between `src/Search/SiteSearch.php` and the migration that creates the GIN indexes. They must match character for character or PostgreSQL silently reads every row instead. Nothing enforces it |
 | A sitemap index | Not needed yet, and recorded as a limit. One document holds fifty thousand addresses; past that the format requires an index of sitemaps, and this serves one document with a ten-thousand ceiling |
 | Full article bodies in the feed | Deliberately absent. The feed carries summaries, so it announces rather than duplicates |
-| Caching of any kind | Not started, and deliberately so — the menu costs one query per request |
-| Security and quality audits | Not started |
-| GitHub Actions CI | **Running, and green as of feature 011.** It had been red on every merge since 007 and nobody had looked. See below |
+| Caching of **pages** | Not started, and deliberately so — the menu costs one query per request. Files are cached by the browser since feature 012; HTML is not cached at all |
+| Security and quality audits | **Not started, and the largest process debt in the project.** The constitution requires a `symfony-reviewer` pass at phase 4 of every feature and none of the fourteen has had one, because no session that built them could spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md`, but that is not the same thing |
+| GitHub Actions CI | **Running, and green since feature 011.** It had been red on every merge since 007 and nobody had looked. See below |
 
 ## CI was red for four features, and this file said it had never run
 
