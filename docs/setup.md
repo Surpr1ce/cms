@@ -127,6 +127,28 @@ symfony serve                # or: php -S localhost:8000 -t public
 001 the project had a complete content model and no routes at all, so every URL
 returned a 404 by design.
 
+## If every request answers 400
+
+The site answers only the hosts named in `SYMFONY_TRUSTED_HOSTS`, and `.env` sets
+that to `localhost` and `127.0.0.1` — the two you develop against. Reaching the
+site by any other name, a machine name or a LAN address, is refused with a 400.
+
+That is deliberate and it is not only a nicety. Symfony builds absolute addresses
+from the host a request claims to be for: canonical tags, the sitemap, the feed,
+and the password-reset link. Left unrestricted, anybody can POST the reset form
+with `Host: attacker.example` and have this site send a real person a real email
+whose link points somewhere else.
+
+**A deployment must set it to the hostname the site is actually served under**,
+in `.env.local` or as a real environment variable:
+
+```bash
+SYMFONY_TRUSTED_HOSTS='^(www\.)?example\.com$'
+```
+
+Getting it wrong is a loud 400 on every request rather than a quiet hole, which
+is the right way round. If a proxy sits in front, set `trusted_proxies` too.
+
 ## If the styling looks wrong
 
 **Do not run `asset-map:compile` on a development machine**, and delete

@@ -9,7 +9,7 @@ as such at the top of the file.
 ## Where this stands
 
 Seventeen features, all on `master`, `composer qa` green after each and CI
-green since feature 011. **864 tests, 2610 assertions.**
+green since feature 011. **884 tests, 2670 assertions.**
 
 A reader can find the site, read it, search it and subscribe to it. An editor can
 write, publish, upload, and get back in after forgetting their password. An
@@ -35,10 +35,19 @@ the length of the list:
   beside it, not an omission.
 - **Optimisations and refinements** — format conversion, responsive images, page
   caching, filtering the log, snippet highlighting. None of them is load-bearing.
-- **One real debt** — no feature has had the `symfony-reviewer` or
-  `security-auditor` pass the constitution asks for at phase 4. That is the
-  honest gap, and it is stated again in the table below rather than left to be
-  inferred.
+- ~~**One real debt** — no feature has had the `symfony-reviewer` or
+  `security-auditor` pass the constitution asks for at phase 4.~~ **Both have now
+  run**, once, across the whole repository. They found twelve things, of which
+  the worst was an account takeover: the password-reset link was built from the
+  request's own `Host:` header, so a stranger could make this site send a real
+  administrator a real email whose link led to the attacker. Ten more are fixed
+  and seven are recorded as deliberately deferred, in
+  [`audit.md`](audit.md#the-reviewer-and-security-passes-2026-08-17).
+
+  Worth stating plainly: **868 passing tests, a level-max analyser and a full
+  conventions audit produced none of those twelve.** The same lesson as the three
+  features above, in a different register — a green suite proves the rules you
+  thought to write down.
 
 ## Done
 
@@ -441,6 +450,34 @@ then asserts neither is named anywhere in the response.
 **Three features in a row now** have consisted entirely of things found by
 opening the running site. The suite has never been wrong; it has never been the
 whole story either.
+
+### After feature 017 — the reviewer and security passes
+
+Not a feature: the two reviews the constitution asks for at phase 4, run for the
+first time across the whole repository, and the twelve findings they produced.
+The full list, fixed and deferred, is in
+[`audit.md`](audit.md#the-reviewer-and-security-passes-2026-08-17); the shape of
+it is worth recording here.
+
+The worst was an **account takeover**. `generateUrl(..., ABSOLUTE_URL)` inside a
+request takes its host from the incoming `Host:` header, and nothing constrained
+that header — so the password-reset link could be pointed anywhere. A stranger
+POSTs an administrator's address with a forged host, the administrator receives a
+genuine email *from this site*, and one click hands a live token to whoever asked.
+Every other control on that feature is bypassed rather than weakened. It is
+closed twice now: the forged header is refused outright, and the link is built
+from configuration whatever the request said. Both are asserted, and the second
+is asserted using a host that *passes* the first, so the two defences can be seen
+to work independently.
+
+Three more were unauthenticated 500s or missing rules of the same family — a page
+number that overflowed an integer, a cycle in the section tree, an administrator
+able to demote themselves out of their own installation. What they have in common
+is that each sat next to a rule that *had* been written: the page screen caught
+the cycle, the voter refused self-deletion, the unit test called 999999 absurdly
+large. The gap was never a missing idea, it was a door beside a locked one.
+
+Sixteen tests were added, covering the refusals rather than the happy paths.
 
 ## Not done
 
