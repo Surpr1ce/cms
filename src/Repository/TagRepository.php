@@ -71,9 +71,13 @@ final class TagRepository extends ServiceEntityRepository implements SluggedRepo
      * archived content by name and leads readers to pages they cannot see. The
      * published scope therefore reaches into this query too.
      *
+     * The optional limit is for the sitemap, which has a fixed number of
+     * addresses to spend and spends whatever the articles and pages left over
+     * here. A tag cloud asks for all of them.
+     *
      * @return list<Tag>
      */
-    public function findInUse(): array
+    public function findInUse(?int $limit = null): array
     {
         return array_values(
             $this->createQueryBuilder('tag')
@@ -82,6 +86,7 @@ final class TagRepository extends ServiceEntityRepository implements SluggedRepo
                 ->andWhere('article.status = :status')
                 ->setParameter('status', ContentStatus::Published)
                 ->orderBy('tag.name', 'ASC')
+                ->setMaxResults($limit)
                 ->getQuery()
                 ->getResult(),
         );
@@ -93,5 +98,27 @@ final class TagRepository extends ServiceEntityRepository implements SluggedRepo
     public function findAllOrdered(): array
     {
         return array_values($this->findBy([], ['name' => 'ASC']));
+    }
+
+    /**
+     * One page of labels for the administration screen.
+     *
+     * Ordered by name and then by identifier: without the tiebreak, two labels
+     * with the same name would swap places between requests and pagination would
+     * silently repeat or skip one — the same reasoning as the published listings.
+     *
+     * @return list<Tag>
+     */
+    public function findPage(int $limit, int $offset): array
+    {
+        return array_values(
+            $this->createQueryBuilder('tag')
+                ->orderBy('tag.name', 'ASC')
+                ->addOrderBy('tag.id', 'ASC')
+                ->setMaxResults($limit)
+                ->setFirstResult($offset)
+                ->getQuery()
+                ->getResult(),
+        );
     }
 }

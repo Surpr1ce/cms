@@ -64,6 +64,41 @@ final class PageRepository extends ServiceEntityRepository implements SluggedRep
     }
 
     /**
+     * One page of pages, whatever their status, for the administration screen.
+     *
+     * In menu order and then by title, which is the order the screen has always
+     * shown, with the identifier as the tiebreak — two pages sharing an order and
+     * a title would otherwise swap between requests and pagination would repeat
+     * or skip one.
+     *
+     * Unlike the article list this needs no viewer: `PageVoter` grants nothing to
+     * an author and everything to the editorial roles, so anybody who may open
+     * this screen at all may see every row on it.
+     *
+     * The parent is fetched with the page because the screen shows it in a column,
+     * and a lazy association there is one query per row — the N+1 SC-003 exists to
+     * keep out. A left join: a top-level page has no parent, and an inner one
+     * would silently drop every page that is its own top level.
+     *
+     * @return list<Page>
+     */
+    public function findPage(int $limit, int $offset): array
+    {
+        return array_values(
+            $this->createQueryBuilder('page')
+                ->addSelect('parent')
+                ->leftJoin('page.parent', 'parent')
+                ->orderBy('page.menuOrder', 'ASC')
+                ->addOrderBy('page.title', 'ASC')
+                ->addOrderBy('page.id', 'ASC')
+                ->setMaxResults($limit)
+                ->setFirstResult($offset)
+                ->getQuery()
+                ->getResult(),
+        );
+    }
+
+    /**
      * The menu, one level at a time. Passing null asks for the top level, which
      * saves every caller a special case for the root.
      *

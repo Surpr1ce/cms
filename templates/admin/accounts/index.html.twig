@@ -33,7 +33,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for account in accounts %}
+                {% for account in page.items %}
                     <tr class="border-b border-rule/60">
                         <td class="py-2 pr-4">
                             <a href="{{ path('admin_accounts_edit', { id: account.id }) }}"
@@ -73,4 +73,14 @@
             </tbody>
         </table>
     </div>
+
+    {#
+       No "nothing here yet" branch, and none is needed: somebody is reading this
+       screen, so there is at least their own account on it.
+    #}
+    {{ include(
+        'components/_pagination.html.twig',
+        { page: page, route: 'admin_accounts_index', routeParams: {} },
+        with_context = false
+    ) }}
 {% endblock %}

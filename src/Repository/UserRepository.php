@@ -22,4 +22,17 @@ final class UserRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['email' => $email]);
     }
+
+    /**
+     * One page of accounts for the administration screen.
+     *
+     * By address, which is what somebody scanning the list is reading, and the
+     * column is unique — so it needs no tiebreak to make the order total.
+     *
+     * @return list<User>
+     */
+    public function findPage(int $limit, int $offset): array
+    {
+        return array_values($this->findBy([], ['email' => 'ASC'], $limit, $offset));
+    }
 }

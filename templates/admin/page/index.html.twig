@@ -10,7 +10,7 @@
         </a>
     </div>
 
-    {% if pages is empty %}
+    {% if page.isEmpty %}
         <p class="mt-8 text-muted">Nothing here yet.</p>
     {% else %}
         <div class="mt-6 overflow-x-auto">
@@ -25,22 +25,27 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for page in pages %}
+                    {#
+                       The row is `item` rather than `page`: since this listing was
+                       paginated, `page` is the page of results, as it is on every
+                       other listing in the application.
+                    #}
+                    {% for item in page.items %}
                         <tr class="border-b border-rule/60">
                             <td class="py-2 pr-4">
-                                <a href="{{ path('admin_page_edit', { id: page.id }) }}"
-                                   class="font-medium text-ink no-underline hover:underline">{{ page.title }}</a>
+                                <a href="{{ path('admin_page_edit', { id: item.id }) }}"
+                                   class="font-medium text-ink no-underline hover:underline">{{ item.title }}</a>
                             </td>
                             <td class="py-2 pr-4">
                                 <span class="rounded-full border border-rule px-2 py-0.5 text-xs text-muted">
-                                    {{ page.status.label }}
+                                    {{ item.status.label }}
                                 </span>
                             </td>
-                            <td class="py-2 pr-4 text-muted">{{ page.parent ? page.parent.title : '—' }}</td>
-                            <td class="py-2 pr-4 text-muted">{{ page.menuOrder }}</td>
+                            <td class="py-2 pr-4 text-muted">{{ item.parent ? item.parent.title : '—' }}</td>
+                            <td class="py-2 pr-4 text-muted">{{ item.menuOrder }}</td>
                             <td class="py-2 text-right">
-                                {% if page.published %}
-                                    <a href="{{ path('page_show', { slug: page.slug }) }}"
+                                {% if item.published %}
+                                    <a href="{{ path('page_show', { slug: item.slug }) }}"
                                        class="text-xs text-accent no-underline hover:underline">View</a>
                                 {% endif %}
                             </td>
@@ -49,5 +54,11 @@
                 </tbody>
             </table>
         </div>
+
+        {{ include(
+            'components/_pagination.html.twig',
+            { page: page, route: 'admin_page_index', routeParams: {} },
+            with_context = false
+        ) }}
     {% endif %}
 {% endblock %}

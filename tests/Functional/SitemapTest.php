@@ -133,6 +133,33 @@ final class SitemapTest extends WebTestCase
         self::assertSame(['/'], $this->addressesInTheSitemap());
     }
 
+    /**
+     * The other half of the ceiling: a site far below it loses nothing.
+     *
+     * Feature 019 gave the document one budget of fifty thousand addresses spent
+     * across the four lists, replacing a cap of ten thousand on two of them and no
+     * cap at all on the other two. A budget shared between lists is exactly the
+     * arrangement that can take an address from the last list because an earlier
+     * one was long, so what is asserted here is that on an ordinary site every
+     * address that exists is present and counted once.
+     *
+     * That the ceiling itself holds is SitemapBudgetTest's job — proving it
+     * through HTTP would mean creating fifty thousand articles.
+     */
+    public function testEveryAddressOnASiteWellUnderTheCeilingIsListed(): void
+    {
+        $articles = ArticleFactory::new()->published()->many(3)->create();
+        PageFactory::new()->published()->many(2)->create();
+        CategoryFactory::createMany(2);
+
+        $label = TagFactory::createOne(['slug' => 'a-label']);
+        $articles[0]->addTag($label);
+        $this->entityManager()->flush();
+
+        // The home page, three articles, two pages, two sections, one label.
+        self::assertCount(9, $this->addressesInTheSitemap());
+    }
+
     public function testTheRobotsFileNamesTheSitemapAndClosesTheAdministrationArea(): void
     {
         $this->client->request('GET', '/robots.txt');

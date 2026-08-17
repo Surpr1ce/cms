@@ -39,11 +39,11 @@
         </button>
     </form>
 
-    {% if files is empty %}
+    {% if page.isEmpty %}
         <p class="mt-8 text-muted">Nothing has been uploaded yet.</p>
     {% else %}
         <ul class="mt-8 space-y-4">
-            {% for file in files %}
+            {% for file in page.items %}
                 <li class="flex flex-wrap items-start gap-4 rounded border border-rule p-4">
                     <div class="w-24 shrink-0">
                         {% if file.mimeType starts with 'image/' %}
@@ -93,5 +93,11 @@
                 </li>
             {% endfor %}
         </ul>
+
+        {{ include(
+            'components/_pagination.html.twig',
+            { page: page, route: 'admin_media_index', routeParams: {} },
+            with_context = false
+        ) }}
     {% endif %}
 {% endblock %}

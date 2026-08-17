@@ -8,8 +8,9 @@ as such at the top of the file.
 
 ## Where this stands
 
-Seventeen features, all on `master`, `composer qa` green after each and CI
-green since feature 011. **884 tests, 2670 assertions.**
+Nineteen features — eighteen on `master`, and feature 019 on its branch until it
+merges — `composer qa` green after each and CI green since feature 011.
+**1020 tests, 3208 assertions.**
 
 A reader can find the site, read it, search it and subscribe to it. An editor can
 write, publish, upload, and get back in after forgetting their password. An
@@ -508,6 +509,53 @@ through a real browser, covering every one of those defects. It is not part of
 `composer qa` — it needs a running site and a browser — and
 [`docs/testing.md`](testing.md) says so.
 
+### Feature 019 — every listing bounded
+
+The public side has been paginated since feature 002. The administration side
+never was: `/admin/articles`, `/admin/pages`, `/admin/manage/accounts` and
+`/admin/manage/labels` each loaded their whole table, and `/admin/media` asked for
+a hundred files and showed a hundred with nothing on the screen to say that the
+hundred-and-first existed. Nobody noticed for eighteen features because a
+development site holds twelve articles. All five fetch one page now, through the
+same `Paginator` and the same previous/next component the public listings use.
+
+**The article list was the reason this was a feature rather than a chore.** It
+loaded every article and then asked `ArticleVoter` about each one, which is
+correct and cannot be paginated: cutting that query into pages would have
+produced pages of unpredictable size — twenty rows fetched, six shown. So the
+visibility rule now exists twice, once as `ArticleVoter::canView()` and once as
+`ArticleRepository::findPageForViewer()`, and
+`ArticleVisibilityMatchesTheVoterTest` runs both over the same articles for every
+combination of roles and ownership and asserts the two answers are identical.
+That test is what makes the duplication a trade rather than a liability; without
+it the query would quietly have become the real rule.
+
+**The sections screen is deliberately not paginated.** It renders a tree, and a
+tree cut across a page boundary is not a tree — a subsection would appear at the
+top of page two indented under nothing. Sections are the site's navigation and
+few by nature, so the reason is written in the controller rather than the screen
+being made to lie.
+
+**The sitemap had no ceiling at all.** The articles and pages were capped at ten
+thousand each and the sections and labels were not capped, so the document as a
+whole was unbounded. `SitemapBudget` now gives it fifty thousand addresses — the
+protocol's number — spent across the four lists in order, so the ceiling belongs
+to the document rather than to any one list, and a list past the ceiling is never
+loaded rather than sliced afterwards. A site that needs more than that needs a
+sitemap *index*, which is recorded as out of scope rather than approximated.
+
+Two N+1s came out of the same work, both found by the new query-count assertion
+rather than by reading: the files screen names each uploader and the pages screen
+shows each parent, and both associations were lazy. `ListingsArePaginatedTest`
+asserts over every paginated screen that the query count for seventeen rows
+equals the count for two.
+
+Also fixed on the way: `tools/browser-check.mjs` reported five false failures
+against the built-in PHP server, which serves one request at a time — its fixed
+six-second wait expired while the module graph was still loading, so it blamed
+the enhancement for not having run yet. It waits for the page to be ready now
+instead of sleeping through it.
+
 ### After feature 017 — the reviewer and security passes
 
 Not a feature: the two reviews the constitution asks for at phase 4, run for the
@@ -565,11 +613,11 @@ Sixteen tests were added, covering the refusals rather than the happy paths.
 | Filtering the log | Not started. Newest first and paged is enough to be useful; filtering by person or by kind is a real improvement and its own work |
 | Recording *what changed* in an edit | Deliberately absent. The log records decisions, not keystrokes; showing an editor the difference between two versions is feature 009's open follow-up rather than this one's |
 | Expiring old entries | **Nothing expires, on purpose.** A record that deletes itself after ninety days cannot answer a question asked on the ninety-first. The table grows, and that is what a record does |
-| Rate limiting on search | **Not implemented.** A public, unauthenticated, unbounded-cost endpoint, and the cheapest thing on the site to abuse. The query is bounded in length and the results in number, which is not the same as a limit. Belongs with the caching work below |
+| ~~Rate limiting on search~~ | **Closed by feature 018.** Both `/search` and `/search/suggestions` are limited per client. The suggestion route had a limiter first, because it is asked on every keystroke; that `/search` itself had none was one of the second review pass's findings |
 | Snippet highlighting in results | Not started. A result shows the same summary the rest of the site shows, rather than the sentence the match was in |
 | Search in more than English | Not started. The stemming configuration is hard-coded, matching the language the constitution requires everything to be written in |
 | The search index expression is duplicated | Between `src/Search/SiteSearch.php` and the migration that creates the GIN indexes. They must match character for character or PostgreSQL silently reads every row instead. Nothing enforces it |
-| A sitemap index | Not needed yet, and recorded as a limit. One document holds fifty thousand addresses; past that the format requires an index of sitemaps, and this serves one document with a ten-thousand ceiling |
+| A sitemap index | Not needed yet, and recorded as a limit. One document holds fifty thousand addresses; past that the format requires an index of sitemaps. Feature 019 gave the document exactly that ceiling — `SitemapBudget`, spent across the articles, pages, sections and labels in that order — so reaching it drops the least valuable addresses rather than whichever list happened to be fetched last |
 | Full article bodies in the feed | Deliberately absent. The feed carries summaries, so it announces rather than duplicates |
 | Caching of **pages** | Not started, and deliberately so — the menu costs one query per request. Files are cached by the browser since feature 012; HTML is not cached at all |
 | Security and quality audits | **Not started, and the largest process debt in the project.** The constitution requires a `symfony-reviewer` pass at phase 4 of every feature and none of the fourteen has had one, because no session that built them could spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md`, but that is not the same thing |
