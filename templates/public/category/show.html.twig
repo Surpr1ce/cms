@@ -17,24 +17,20 @@
 {% endblock %}
 
 {% block main %}
-    <header class="border-b border-rule pb-6">
-        <h1 class="text-2xl font-semibold tracking-tight">{{ category.name }}</h1>
+    {% set subsections = [] %}
+    {% for child in children %}
+        {% set subsections = subsections|merge([{
+            label: child.name,
+            path: path('category_show', { slug: child.slug }),
+        }]) %}
+    {% endfor %}
 
-        {% if category.description %}
-            <p class="mt-2 text-muted">{{ category.description }}</p>
-        {% endif %}
-
-        {% if children is not empty %}
-            <ul class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                {% for child in children %}
-                    <li>
-                        <a href="{{ path('category_show', { slug: child.slug }) }}"
-                           class="text-accent no-underline hover:underline">{{ child.name }}</a>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-    </header>
+    {{ include('components/_listing_header.html.twig', {
+        eyebrow: 'Section',
+        title: category.name,
+        lead: category.description,
+        links: subsections,
+    }, with_context = false) }}
 
     {% if page.items is empty %}
         {#

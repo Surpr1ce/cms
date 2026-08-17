@@ -4,10 +4,21 @@
 {% block meta_description %}The most recent articles published on {{ site_name }}.{% endblock %}
 
 {% block main %}
+    {#
+       The front page had no heading of any kind — not a styling choice, an
+       omission: it was the one screen on the site with no `h1`, which is the
+       element a screen reader announces first and a search engine weighs
+       heaviest.
+    #}
+    {{ include('components/_listing_header.html.twig', {
+        title: 'Latest',
+        lead: 'The most recent articles published on ' ~ site_name ~ '.',
+    }, with_context = false) }}
+
     {% if page.items is empty %}
-        <p class="text-muted">Nothing has been published yet.</p>
+        <p class="mt-8 text-muted">Nothing has been published yet.</p>
     {% else %}
-        <div class="space-y-8">
+        <div class="mt-8 space-y-8">
             {% for article in page.items %}
                 {{ include('components/_article_card.html.twig', { article: article }, with_context = false) }}
             {% endfor %}

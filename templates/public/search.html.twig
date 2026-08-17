@@ -24,7 +24,10 @@
 {% endblock %}
 
 {% block main %}
-    <h1 class="text-2xl font-semibold tracking-tight">Search</h1>
+    {{ include('components/_listing_header.html.twig', {
+        title: 'Search',
+        lead: 'Everything published on this site — articles and pages alike.',
+    }, with_context = false) }}
 
     {{ include('components/_search_form.html.twig', { query: query.text, autofocus: true }, with_context = false) }}
 

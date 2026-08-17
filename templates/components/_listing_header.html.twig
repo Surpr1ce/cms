@@ -1,0 +1,40 @@
+{#
+   The head of a listing: the front page, a section, a label, the search results.
+
+   One component because those four screens are the same thing — a title over a
+   list of articles — and until it existed they each said so differently. A
+   section had a bordered block and a description; a label had a small grey
+   eyebrow above its name; the search page had a bare heading; the front page had
+   nothing at all. Four treatments for one idea, with no decision behind any of
+   the differences.
+
+   Everything but `title` is optional, so a screen that has no description or no
+   sub-links renders without a gap where they would be.
+
+     eyebrow  — what kind of listing this is, when that is not obvious
+     title    — required
+     lead     — a sentence about it
+     links    — a list of { label, path }, for a section's subsections
+#}
+<header class="border-b border-rule pb-6">
+    {% if eyebrow|default('') %}
+        <p class="text-sm text-muted">{{ eyebrow }}</p>
+    {% endif %}
+
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight">{{ title }}</h1>
+
+    {% if lead|default('') %}
+        <p class="mt-2 max-w-prose text-muted">{{ lead }}</p>
+    {% endif %}
+
+    {% if links|default([]) is not empty %}
+        <ul class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            {% for link in links %}
+                <li>
+                    <a href="{{ link.path }}"
+                       class="text-accent no-underline hover:underline">{{ link.label }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</header>

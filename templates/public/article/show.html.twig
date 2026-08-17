@@ -18,6 +18,9 @@
 
 {% block preview_type %}article{% endblock %}
 
+{# A reading measure: prose, not a listing. #}
+{% block reading_width %}max-w-3xl{% endblock %}
+
 {% block breadcrumbs %}
     {% set trail = [] %}
     {% if article.category %}

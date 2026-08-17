@@ -12,10 +12,10 @@
 {% endblock %}
 
 {% block main %}
-    <header class="border-b border-rule pb-6">
-        <p class="text-sm text-muted">Tagged</p>
-        <h1 class="text-2xl font-semibold tracking-tight">{{ tag.name }}</h1>
-    </header>
+    {{ include('components/_listing_header.html.twig', {
+        eyebrow: 'Tagged',
+        title: tag.name,
+    }, with_context = false) }}
 
     {% if page.items is empty %}
         <p class="mt-8 text-muted">Nothing published carries this tag yet.</p>

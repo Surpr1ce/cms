@@ -1,0 +1,39 @@
+{#
+   The sections, in the site navigation.
+
+   Deliberately the same shape as `_menu.html.twig`, down to the brackets: a
+   section with subsections and a page with subpages are the same thing to
+   somebody reading a menu, and styling them differently said they were not.
+   They were plain links here and bracketed groups there, for no reason anybody
+   could have named.
+
+   It also fixes something the bracket-less version hid. Top-level sections were
+   all the navigation showed, so a subsection — "Releases" under "News" in the
+   development data — appeared as the label under an article's title and was
+   reachable from the navigation nowhere at all.
+#}
+{% for section in sections %}
+    <span class="inline-flex flex-wrap items-baseline gap-x-1.5" data-menu-group>
+        <a href="{{ path('category_show', { slug: section.slug }) }}"
+           class="text-muted no-underline hover:text-ink hover:underline">
+            {{ section.name }}
+        </a>
+
+        {% if section.children is not empty %}
+            <span class="text-rule" aria-hidden="true">(</span>
+
+            {% for child in section.children %}
+                <a href="{{ path('category_show', { slug: child.slug }) }}"
+                   class="text-muted/80 no-underline hover:text-ink hover:underline">
+                    {{ child.name }}
+                </a>
+
+                {% if not loop.last %}
+                    <span class="text-rule" aria-hidden="true">·</span>
+                {% endif %}
+            {% endfor %}
+
+            <span class="text-rule" aria-hidden="true">)</span>
+        {% endif %}
+    </span>
+{% endfor %}

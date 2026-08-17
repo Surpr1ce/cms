@@ -18,49 +18,35 @@
     </a>
 
     <div class="flex min-h-full flex-col">
+        {#
+           One bar: the site's name on the left, where it goes; the navigation in
+           the middle; the search on the right.
+
+           The order in the markup is the order somebody reading with a keyboard
+           or a screen reader meets it, and it is also the order it appears in
+           when the bar has to stack. `order-*` only rearranges the visual line
+           once there is room for one — below that the three sit above each
+           other, which is the only arrangement that fits a narrow screen without
+           squeezing the search into something nobody can type in.
+        #}
+        {% set sections = public_sections() %}
+        {% set menu = public_menu() %}
+
         <header class="border-b border-rule">
-            <div class="mx-auto max-w-3xl px-5 py-5">
-                <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
-                    <a href="{{ path('home') }}" class="text-lg font-semibold tracking-tight text-ink no-underline">
-                        {{ site_name }}
-                    </a>
-
-                    {#
-                       `w-full` only until there is room for it. In a wrapping
-                       flex row `w-full` is a basis of 100%, so an unconditional
-                       one puts the search on a line of its own at every width.
-
-                       Overridable, and the search screen overrides it away: that
-                       page carries its own search box, and two of them on one
-                       screen is a question about which one to type into.
-                    #}
-                    {% block header_search %}
-                        <div class="w-full sm:w-72">
-                            {{ include(
-                                'components/_search_form.html.twig',
-                                { query: app.request.query.get('q'), autofocus: false },
-                                with_context = false
-                            ) }}
-                        </div>
-                    {% endblock %}
-                </div>
-
-                {#
-                   Sections and pages, on one line, both from the same place.
-                   Before feature 017 the header carried pages only, so the site's
-                   own structure — the sections articles are filed under — could
-                   be reached from nowhere except the small link under an
-                   article's title.
-                #}
-                {% set sections = public_sections() %}
-                {% set menu = public_menu() %}
+            <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
+                <a href="{{ path('home') }}"
+                   class="shrink-0 text-lg font-semibold tracking-tight text-ink no-underline">
+                    {{ site_name }}
+                </a>
 
                 {% if sections is not empty or menu is not empty %}
-                    <nav class="mt-4 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm" aria-label="Site">
-                        {% for section in sections %}
-                            <a href="{{ path('category_show', { slug: section.slug }) }}"
-                               class="text-muted no-underline hover:text-ink hover:underline">{{ section.name }}</a>
-                        {% endfor %}
+                    <nav class="order-last flex w-full flex-wrap items-baseline gap-x-5 gap-y-1 text-sm sm:order-none sm:w-auto sm:flex-1 sm:justify-center"
+                         aria-label="Site">
+                        {{ include(
+                            'components/_sections_menu.html.twig',
+                            { sections: sections },
+                            with_context = false
+                        ) }}
 
                         {% if sections is not empty and menu is not empty %}
                             <span class="text-rule" aria-hidden="true">|</span>
@@ -69,12 +55,36 @@
                         {{ include('components/_menu.html.twig', { pages: menu }, with_context = false) }}
                     </nav>
                 {% endif %}
+
+                {#
+                   Overridable, and the search screen overrides it away: that page
+                   carries its own search box, and two of them on one screen is a
+                   question about which one to type into.
+                #}
+                {% block header_search %}
+                    <div class="ml-auto w-full sm:w-64">
+                        {{ include(
+                            'components/_search_form.html.twig',
+                            { query: app.request.query.get('q'), autofocus: false },
+                            with_context = false
+                        ) }}
+                    </div>
+                {% endblock %}
             </div>
         </header>
 
-        <main id="main" class="mx-auto w-full max-w-3xl grow px-5 py-10">
-            {% block breadcrumbs %}{% endblock %}
-            {% block main %}{% endblock %}
+        <main id="main" class="mx-auto w-full max-w-5xl grow px-5 py-10">
+            {#
+               Listings use the whole width; prose does not. A line of text a
+               thousand pixels wide is measurably harder to read — the eye loses
+               its place returning to the start of the next one — so the article
+               and page screens narrow this to a reading measure and everything
+               else keeps the room.
+            #}
+            <div class="mx-auto w-full {% block reading_width %}max-w-5xl{% endblock %}">
+                {% block breadcrumbs %}{% endblock %}
+                {% block main %}{% endblock %}
+            </div>
         </main>
 
         {#
@@ -86,7 +96,7 @@
            page that is already tall enough.
         #}
         <footer class="border-t border-rule">
-            <div class="mx-auto max-w-3xl px-5 py-12">
+            <div class="mx-auto max-w-5xl px-5 py-12">
                 <div class="grid gap-8 sm:grid-cols-3">
                     <div>
                         <p class="text-sm font-semibold text-ink">{{ site_name }}</p>

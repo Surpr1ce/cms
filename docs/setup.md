@@ -127,6 +127,32 @@ symfony serve                # or: php -S localhost:8000 -t public
 001 the project had a complete content model and no routes at all, so every URL
 returned a 404 by design.
 
+## If the styling looks wrong
+
+**Do not run `asset-map:compile` on a development machine**, and delete
+`public/assets` if somebody has.
+
+That command writes the compiled assets for production. The web server serves
+files in `public/` directly, so once that directory exists the browser gets
+whatever the stylesheet looked like the last time it was compiled — and every
+change since is invisible, while `var/tailwind/app.built.css` goes on being
+correct and reassuring.
+
+This cost two rounds of "it still looks wrong" against a stylesheet that was
+eight features old. The fix is one line:
+
+```bash
+rm -rf public/assets      # PowerShell: Remove-Item -Recurse -Force public\assets
+```
+
+If Tailwind classes added to a template do not appear at all,
+`php bin/console tailwind:build` rebuilds the stylesheet — but check what is
+actually being served first:
+
+```bash
+curl -s localhost:8000 | grep -o '/assets/styles/[^"]*\.css'
+```
+
 ## Operator commands
 
 ```bash

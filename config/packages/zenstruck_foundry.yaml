@@ -1,6 +1,17 @@
 when@dev: &dev
     # See full configuration: https://symfony.com/bundles/ZenstruckFoundryBundle/current/index.html#full-default-bundle-configuration
     zenstruck_foundry:
+        # Set explicitly because leaving it unset is deprecated since Foundry
+        # 2.7 and becomes true in 3.0 whatever anybody wants. Taking the future
+        # default now means the upgrade changes nothing, and means the suite is
+        # already running against the behaviour it will have.
+        #
+        # It refreshes a lazy object from the database when it is touched, which
+        # is what makes a factory-made entity agree with what was stored after
+        # something else has written to it. Two tests in feature 003 passed while
+        # proving nothing for exactly the want of that.
+        enable_auto_refresh_with_lazy_objects: true
+
         persistence:
             # Flush only once per call of `PersistentObjectFactory::create()`
             flush_once: true

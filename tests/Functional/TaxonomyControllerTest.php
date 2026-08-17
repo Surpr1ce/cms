@@ -108,7 +108,9 @@ final class TaxonomyControllerTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/sections/news');
 
-        self::assertCount(1, $crawler->filter('a[href="/sections/releases"]'));
+        // Scoped to main: the site navigation links to every section and
+        // subsection too, which is correct and is a different assertion.
+        self::assertCount(1, $crawler->filter('main a[href="/sections/releases"]'));
     }
 
     /**
