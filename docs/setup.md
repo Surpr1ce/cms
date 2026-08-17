@@ -72,8 +72,29 @@ php bin/console --env=test doctrine:migrations:migrate --no-interaction
 ```
 
 The fixtures build 4 accounts, 3 sections, 5 labels, 12 articles across all three
-states, 6 pages and 6 files. Sign-in does not exist yet, so the accounts are
-author attributions rather than credentials you can use.
+states, 6 pages and 6 files.
+
+## Signing in
+
+All four fixture accounts can sign in, using the password in
+`UserFactory::DEVELOPMENT_PASSWORD` — written openly in the repository, because
+an account whose password anybody can read is one nobody can mistake for a real
+one.
+
+| Account | Role |
+| --- | --- |
+| `admin@example.com` | administrator |
+| `editor@example.com` | editor |
+| two generated addresses | author |
+
+On a real installation, where fixtures are never loaded:
+
+```bash
+php bin/console app:create-administrator you@example.com "a-long-enough-password" "Your Name"
+```
+
+It creates the account, or promotes and re-passwords an existing one. Minimum
+twelve characters. The password is never echoed back.
 
 ## Verify
 

@@ -29,6 +29,7 @@ src/
   Service/         Application services (slugging, publishing, uploads)
   Exception/       Domain exceptions — one class per refused rule
   Factory/         Foundry factories — one per entity, used by fixtures and tests
+  Command/         Console commands — operator tasks with no HTTP surface
   Controller/      HTTP boundary — thin, delegates to services
     Admin/         Hand-written admin screens
   Security/        Voters, authenticators

@@ -1,0 +1,52 @@
+{% extends 'public/layout.html.twig' %}
+
+{% block title %}Sign in — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <h1 class="text-2xl font-semibold tracking-tight">Sign in</h1>
+
+    <form method="post" action="{{ path('login') }}" class="mt-8 max-w-sm space-y-5">
+        {% if error %}
+            {#
+               One message, whatever went wrong. Symfony collapses "no such
+               account" and "wrong password" into the same failure before it
+               reaches here, and it has to stay collapsed — otherwise this form
+               becomes a way to discover which addresses hold accounts.
+            #}
+            <p class="rounded border border-rule bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+                {{ error.messageKey|trans(error.messageData, 'security') }}
+            </p>
+        {% endif %}
+
+        <div>
+            <label for="email" class="block text-sm font-medium">Email address</label>
+            <input type="email"
+                   id="email"
+                   name="_username"
+                   value="{{ lastEmail }}"
+                   required
+                   autocomplete="email"
+                   autofocus
+                   class="mt-1 w-full rounded border border-rule px-3 py-2">
+        </div>
+
+        <div>
+            <label for="password" class="block text-sm font-medium">Password</label>
+            {# Never given a value attribute: a password is not echoed back. #}
+            <input type="password"
+                   id="password"
+                   name="_password"
+                   required
+                   autocomplete="current-password"
+                   class="mt-1 w-full rounded border border-rule px-3 py-2">
+        </div>
+
+        {# FR-004: without this, another site could cause a sign-in on somebody's behalf. #}
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+        <button type="submit"
+                class="rounded bg-ink px-4 py-2 text-white hover:bg-accent">
+            Sign in
+        </button>
+    </form>
+{% endblock %}

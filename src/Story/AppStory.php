@@ -44,15 +44,19 @@ final class AppStory extends Story
         $now = new DateTimeImmutable();
         $slugger = new SlugGenerator();
 
-        $admin = UserFactory::new()->admin()->create([
+        // Every fixture account can sign in, with the password written openly in
+        // UserFactory. That it is in the repository is the point: an account
+        // whose password anybody can read is an account nobody can mistake for a
+        // real one. Real accounts are created with app:create-administrator.
+        $admin = UserFactory::new()->admin()->withPassword()->create([
             'email' => 'admin@example.com',
             'displayName' => 'Alex Admin',
         ]);
-        $editor = UserFactory::new()->editor()->create([
+        $editor = UserFactory::new()->editor()->withPassword()->create([
             'email' => 'editor@example.com',
             'displayName' => 'Erin Editor',
         ]);
-        $authors = UserFactory::new()->author()->many(2)->create();
+        $authors = UserFactory::new()->author()->withPassword()->many(2)->create();
 
         $news = CategoryFactory::createOne(['name' => 'News', 'slug' => 'news']);
         $opinion = CategoryFactory::createOne(['name' => 'Opinion', 'slug' => 'opinion']);
