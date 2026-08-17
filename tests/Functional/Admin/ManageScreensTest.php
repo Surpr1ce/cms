@@ -15,6 +15,7 @@ use App\Factory\UserFactory;
 use App\Repository\CategoryRepository;
 use App\Repository\TagRepository;
 use App\Repository\UserRepository;
+use App\Tests\Functional\SigningOut;
 use Doctrine\ORM\EntityManagerInterface;
 
 use function sprintf;
@@ -48,6 +49,7 @@ use Zenstruck\Foundry\Test\Factories;
 final class ManageScreensTest extends WebTestCase
 {
     use Factories;
+    use SigningOut;
 
     private KernelBrowser $client;
 
@@ -146,6 +148,41 @@ final class ManageScreensTest extends WebTestCase
         self::assertSame('Everything', $reloaded->getParent()->getName());
     }
 
+    /**
+     * A section cannot be put inside its own subsection, and saying so is not an
+     * error page.
+     *
+     * The parent list offers this section's own children, so the wrong choice is
+     * one click away — and until a review found it, that click was a 500. The
+     * entity had always refused the cycle and carried a sentence explaining it;
+     * nothing here caught the exception, where the page screen next door always
+     * had.
+     */
+    public function testASectionCannotBePutInsideItsOwnSubsection(): void
+    {
+        $this->signIn([User::ROLE_EDITOR]);
+
+        $parent = CategoryFactory::createOne(['name' => 'News', 'slug' => 'news']);
+        $child = CategoryFactory::createOne(['name' => 'Local', 'slug' => 'local', 'parent' => $parent]);
+
+        $crawler = $this->client->request('GET', '/admin/manage/sections/'.$parent->getId().'/edit');
+        self::assertResponseIsSuccessful();
+
+        $form = $crawler->selectButton('Save')->form();
+        $values = $form->getPhpValues();
+        $fields = $values['section'] ?? [];
+        self::assertIsArray($fields);
+
+        $fields['name'] = 'News';
+        $fields['parent'] = (string) $child->getId();
+        $values['section'] = $fields;
+
+        $this->client->request('POST', $form->getUri(), $values);
+
+        self::assertResponseIsSuccessful();
+        self::assertNull($this->reloadSection($parent->getId())->getParent());
+    }
+
     // -------------------------------------------------------------- labels
 
     public function testAnEditorCreatesALabel(): void
@@ -208,7 +245,7 @@ final class ManageScreensTest extends WebTestCase
 
         // The password works, which is the only proof that it was hashed rather
         // than stored as typed or dropped.
-        $this->client->request('POST', '/logout');
+        $this->signOut();
         $crawler = $this->client->request('GET', '/login');
         $this->client->submit($crawler->selectButton('Sign in')->form([
             '_username' => 'newcomer@example.com',

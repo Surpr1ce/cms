@@ -68,9 +68,17 @@ final readonly class PasswordResetService
             return null;
         }
 
-        // Everything outstanding is spent first. A person who asks twice has one
-        // link, and it is the one they just received.
-        foreach ($this->requests->findAllFor($account) as $existing) {
+        $now = $this->clock->now();
+
+        // Rows that can no longer open anything go, before anything else reads
+        // them. Nothing was ever removed here, so an account's history grew
+        // without bound and every reset rewrote all of it — and the form that
+        // starts one needs no account at all.
+        $this->requests->deleteSpentFor($account, $now);
+
+        // Everything still outstanding is spent next. A person who asks twice has
+        // one link, and it is the one they just received.
+        foreach ($this->requests->findLiveFor($account, $now) as $existing) {
             $existing->consume();
         }
 
@@ -82,7 +90,7 @@ final readonly class PasswordResetService
         $this->entityManager->persist(new PasswordResetRequest(
             $account,
             $this->hash($token),
-            $this->clock->now(),
+            $now,
         ));
         $this->entityManager->flush();
 

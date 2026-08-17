@@ -39,7 +39,11 @@ final class FeedController extends AbstractController
     #[Route('/feed.xml', name: 'feed', methods: ['GET'])]
     public function index(): Response
     {
-        $articles = $this->articles->findPublished(self::ENTRIES);
+        // findPublishedPage rather than findPublished: the same rows, with the
+        // author and the section join-fetched. The template renders both for
+        // every entry, so without it a feed of twenty articles cost forty-one
+        // queries where the front page showing the same twenty costs one.
+        $articles = $this->articles->findPublishedPage(self::ENTRIES, 0);
         $newest = $articles[0] ?? null;
 
         $response = $this->render('public/feed.xml.twig', [

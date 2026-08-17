@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\PasswordResetRequest;
+use App\Service\Account\PasswordPolicy;
 use App\Service\Account\PasswordResetService;
-
-use function mb_strlen;
-
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,6 +16,7 @@ use Symfony\Component\Mime\Email;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Security\Http\Authentication\UserAuthenticatorInterface;
 use Symfony\Component\Security\Http\Authenticator\AuthenticatorInterface;
 
@@ -39,12 +38,6 @@ use function trim;
  */
 final class PasswordResetController extends AbstractController
 {
-    /**
-     * The same length the administration screen asks for. One number, in as few
-     * places as possible.
-     */
-    public const int MINIMUM_PASSWORD_LENGTH = 12;
-
     public function __construct(
         private readonly PasswordResetService $resets,
         private readonly MailerInterface $mailer,
@@ -55,6 +48,9 @@ final class PasswordResetController extends AbstractController
         // form_login.main` is the one belonging to the `main` firewall, and
         // config/services.yaml says so.
         private readonly AuthenticatorInterface $formLogin,
+        private readonly UrlGeneratorInterface $urlGenerator,
+        // Where this site actually lives, from configuration. See linkFor().
+        private readonly string $siteUri,
     ) {
     }
 
@@ -92,11 +88,7 @@ final class PasswordResetController extends AbstractController
                     ->subject('Set a new password')
                     ->text($this->renderView('email/reset_password.txt.twig', [
                         'displayName' => $account->getDisplayName(),
-                        'link' => $this->generateUrl(
-                            'password_reset_complete',
-                            ['token' => $token],
-                            UrlGeneratorInterface::ABSOLUTE_URL,
-                        ),
+                        'link' => $this->linkFor($token),
                     ])),
             );
         }
@@ -142,7 +134,7 @@ final class PasswordResetController extends AbstractController
         }
 
         $password = (string) $request->request->get('password');
-        $error = $this->reasonToRefuse($password, (string) $request->request->get('confirmation'));
+        $error = PasswordPolicy::reasonToRefuse($password, (string) $request->request->get('confirmation'));
 
         if (null !== $error) {
             return $this->render('public/security/reset_complete.html.twig', [
@@ -163,19 +155,40 @@ final class PasswordResetController extends AbstractController
     }
 
     /**
-     * @return string|null the sentence to show, or null when the password is
-     *                     acceptable
+     * The reset link, built from configuration rather than from the request.
+     *
+     * This is the one place in the application where that distinction is worth a
+     * paragraph. `generateUrl(..., ABSOLUTE_URL)` takes its host from the router's
+     * context, and inside a request that context is filled from the incoming
+     * `Host:` header. So an attacker could POST somebody else's address here with
+     * `Host: attacker.example`, and the victim would receive a genuine email from
+     * this site whose link pointed at the attacker's server — handing over a live
+     * token, which `complete()` accepts and turns straight into a session. Every
+     * other control here (hashed at rest, single use, one hour, throttled,
+     * identical responses) is bypassed rather than weakened, because the token is
+     * given away rather than guessed.
+     *
+     * `trusted_hosts` closes it too and is set, but this closes it whatever the
+     * web server in front happens to pass through — a mail that leaves the
+     * building deserves the belt as well as the braces.
+     *
+     * The context is swapped and put back rather than a second generator being
+     * built: the router is a shared service, PHP handles one request at a time,
+     * and `finally` means an exception cannot leave it pointing at the wrong site.
      */
-    private function reasonToRefuse(string $password, string $confirmation): ?string
+    private function linkFor(string $token): string
     {
-        if (mb_strlen($password) < self::MINIMUM_PASSWORD_LENGTH) {
-            return 'A password needs at least '.self::MINIMUM_PASSWORD_LENGTH.' characters.';
-        }
+        $original = $this->urlGenerator->getContext();
+        $this->urlGenerator->setContext(RequestContext::fromUri($this->siteUri));
 
-        if ($password !== $confirmation) {
-            return 'The two passwords do not match.';
+        try {
+            return $this->urlGenerator->generate(
+                'password_reset_complete',
+                ['token' => $token],
+                UrlGeneratorInterface::ABSOLUTE_URL,
+            );
+        } finally {
+            $this->urlGenerator->setContext($original);
         }
-
-        return null;
     }
 }

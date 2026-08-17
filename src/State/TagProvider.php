@@ -44,7 +44,11 @@ final readonly class TagProvider implements ProviderInterface
             return null;
         }
 
-        $tag = $this->tags->findOneBySlug($slug);
+        // findOneInUseBySlug, for the reason the collection above calls
+        // findInUse: this resource's own description says a label here is one
+        // carried by at least one published article, and until an audit noticed,
+        // the item address answered for any label in the table.
+        $tag = $this->tags->findOneInUseBySlug($slug);
 
         return !$tag instanceof Tag ? null : TagResource::from($tag);
     }

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Entity\AuditAction;
 use App\Entity\Category;
+use App\Exception\DomainException;
 use App\Form\Command\SectionCommand;
 use App\Form\SectionType;
 use App\Repository\CategoryRepository;
 use App\Security\AdministrationVoter;
+use App\Service\Audit\AuditLog;
 use App\Service\Taxonomy\CategoryDeleter;
 use App\Service\Taxonomy\TaxonomyEditor;
 
@@ -42,6 +45,7 @@ final class SectionController extends AbstractController
         private readonly CategoryRepository $sections,
         private readonly TaxonomyEditor $editor,
         private readonly CategoryDeleter $deleter,
+        private readonly AuditLog $audit,
     ) {
     }
 
@@ -85,11 +89,21 @@ final class SectionController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->editor->updateSection($command, $section);
+            try {
+                $this->editor->updateSection($command, $section);
 
-            $this->addFlash('success', 'Saved.');
+                $this->addFlash('success', 'Saved.');
 
-            return $this->redirectToRoute('admin_section_edit', ['id' => $section->getId()]);
+                return $this->redirectToRoute('admin_section_edit', ['id' => $section->getId()]);
+            } catch (DomainException $refusal) {
+                // A cycle in the section tree. The parent list offers this
+                // section's own children, so putting a section inside its own
+                // subsection is one wrong click away — and until a review found
+                // it, that click was a 500 rather than the sentence the entity
+                // refuses it with. The page screen has always handled this; this
+                // one had not.
+                $this->addFlash('error', $refusal->getMessage());
+            }
         }
 
         return $this->render('admin/section/form.html.twig', ['form' => $form, 'section' => $section]);
@@ -107,6 +121,11 @@ final class SectionController extends AbstractController
         $name = $section->getName();
 
         $this->deleter->delete($section);
+
+        // The name is read above, before the row goes. Recorded because deleting
+        // a section quietly uncategorises every article in it — a change nobody
+        // can see afterwards from anywhere but here.
+        $this->audit->record(AuditAction::SectionDeleted, $name);
 
         $this->addFlash('success', sprintf('“%s” was deleted. Its articles are now uncategorised.', $name));
 

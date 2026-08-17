@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Controller\PasswordResetController;
 use App\Entity\User;
+use App\Service\Account\PasswordPolicy;
 use App\Service\Account\PasswordResetService;
-
-use function mb_strlen;
-
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -74,12 +71,10 @@ final class MyAccountController extends AbstractController
     {
         $new = (string) $request->request->get('password');
 
-        if (mb_strlen($new) < PasswordResetController::MINIMUM_PASSWORD_LENGTH) {
-            return 'A password needs at least '.PasswordResetController::MINIMUM_PASSWORD_LENGTH.' characters.';
-        }
+        $unacceptable = PasswordPolicy::reasonToRefuse($new, (string) $request->request->get('confirmation'));
 
-        if ($new !== (string) $request->request->get('confirmation')) {
-            return 'The two new passwords do not match.';
+        if (null !== $unacceptable) {
+            return $unacceptable;
         }
 
         // Last, and only once the new password is known to be acceptable — so

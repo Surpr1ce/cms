@@ -17,6 +17,7 @@ use Zenstruck\Foundry\Test\Factories;
 final class LoginTest extends WebTestCase
 {
     use Factories;
+    use SigningOut;
 
     private KernelBrowser $client;
 
@@ -147,11 +148,39 @@ final class LoginTest extends WebTestCase
         UserFactory::new()->author()->withPassword()->create(['email' => 'author@example.com']);
         $this->signIn('author@example.com', UserFactory::DEVELOPMENT_PASSWORD);
 
-        $this->client->request('POST', '/logout');
+        $this->signOut();
 
         $this->client->request('GET', '/admin');
         self::assertResponseRedirects();
         self::assertStringContainsString('/login', (string) $this->client->getResponse()->headers->get('Location'));
+    }
+
+    /**
+     * Signing out is a state change, so another site must not be able to cause
+     * one.
+     *
+     * `enable_csrf` was missing from the logout firewall while csrf.yaml already
+     * listed `logout` among the stateless token ids, which read as though it were
+     * on. It was not, and the route accepted GET — so `<img src=".../logout">` on
+     * any page an editor visited signed them out, repeatedly if the attacker
+     * cared to. A nuisance rather than a disclosure, and the one state-changing
+     * address in the application with no token.
+     *
+     * Both halves are asserted: a bare POST carrying neither a token nor
+     * same-origin evidence changes nothing, and GET is not a method the route
+     * answers at all.
+     */
+    public function testAnotherSiteCannotSignSomebodyOut(): void
+    {
+        UserFactory::new()->author()->withPassword()->create(['email' => 'author@example.com']);
+        $this->signIn('author@example.com', UserFactory::DEVELOPMENT_PASSWORD);
+
+        $this->client->request('POST', '/logout');
+        $this->client->request('GET', '/logout');
+
+        // Still recognised: /admin answers rather than sending them to sign in.
+        $this->client->request('GET', '/admin');
+        self::assertResponseIsSuccessful();
     }
 
     /**

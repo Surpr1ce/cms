@@ -53,7 +53,7 @@
                    minlength="12"
                    autocomplete="new-password"
                    class="mt-1 w-full rounded border border-rule px-3 py-2">
-            <p class="mt-1 text-sm text-muted">At least 12 characters.</p>
+            <p class="mt-1 text-sm text-muted">{{ constant('App\\Service\\Account\\PasswordPolicy::MINIMUM_LENGTH') }} characters or more.</p>
         </div>
 
         <div>

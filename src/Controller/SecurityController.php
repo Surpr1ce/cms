@@ -40,8 +40,13 @@ final class SecurityController extends AbstractController
      *
      * The empty body is not an oversight — Symfony's logout listener handles the
      * request and this method exists only to give the route somewhere to point.
+     *
+     * POST only, and CSRF-checked by the firewall. Signing somebody out is a
+     * state change, and a state change reachable by following a link is a state
+     * change another site can cause by embedding an image — the same reasoning
+     * that makes every publication transition a POST.
      */
-    #[Route('/logout', name: 'logout', methods: ['GET', 'POST'])]
+    #[Route('/logout', name: 'logout', methods: ['POST'])]
     public function logout(): never
     {
         throw new LogicException('The firewall intercepts /logout; this is never reached.');

@@ -47,6 +47,7 @@
                 <div class="ml-auto flex items-center gap-4 text-sm">
                     <span class="text-white/70">{{ app.user.displayName }}</span>
                     <form method="post" action="{{ path('logout') }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
                         <button type="submit" class="text-white/80 hover:text-white">Sign out</button>
                     </form>
                 </div>

@@ -31,6 +31,7 @@ use Zenstruck\Foundry\Test\Factories;
 final class AdministrationIsClosedTest extends WebTestCase
 {
     use Factories;
+    use SigningOut;
 
     private KernelBrowser $client;
 
@@ -176,7 +177,7 @@ final class AdministrationIsClosedTest extends WebTestCase
     {
         UserFactory::new()->editor()->withPassword()->create(['email' => 'editor@example.com']);
         $this->signIn('editor@example.com', UserFactory::DEVELOPMENT_PASSWORD);
-        $this->client->request('POST', '/logout');
+        $this->signOut();
 
         $this->revokeRolesOf('editor@example.com');
 

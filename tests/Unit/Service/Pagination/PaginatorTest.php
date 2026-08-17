@@ -6,6 +6,9 @@ namespace App\Tests\Unit\Service\Pagination;
 
 use App\Service\Pagination\Paginator;
 use InvalidArgumentException;
+
+use const PHP_INT_MAX;
+
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -40,8 +43,33 @@ final class PaginatorTest extends TestCase
         yield 'one' => ['1', 1];
         yield 'a real page' => ['4', 4];
         yield 'an int already' => [9, 9];
-        yield 'absurdly large' => ['999999', 999999];
+        // Clamped at the top as well as the bottom. This case used to expect
+        // 999999 back and to stop there, which is how the real defect underneath
+        // it survived: a page number near PHP_INT_MAX overflows offsetFor() into
+        // a float, and returning a float from an `int` return type under strict
+        // types is a TypeError — so ?page=9223372036854775807 was a 500 on every
+        // listing in the application. Found by review, not by this test.
+        yield 'absurdly large' => ['999999', Paginator::MAXIMUM_PAGE];
+        yield 'the largest integer there is' => [(string) PHP_INT_MAX, Paginator::MAXIMUM_PAGE];
+        yield 'larger than any integer' => ['99999999999999999999999', 1];
+        yield 'the last page anybody is given' => [(string) Paginator::MAXIMUM_PAGE, Paginator::MAXIMUM_PAGE];
         yield 'SQL-looking' => ['1; DROP TABLE article', 1];
+    }
+
+    /**
+     * The overflow itself, at the boundary the clamp exists to keep away from.
+     *
+     * offsetFor() multiplies, so without the ceiling this is where an unhandled
+     * TypeError came from. Asserting the arithmetic rather than the absence of an
+     * exception, because "it did not throw" would still pass if the clamp were
+     * moved somewhere that let the multiplication happen first.
+     */
+    public function testTheHighestAcceptedPageStillHasAnOffsetThatFits(): void
+    {
+        $offset = new Paginator(20)->offsetFor(Paginator::pageNumberFrom((string) PHP_INT_MAX));
+
+        self::assertSame((Paginator::MAXIMUM_PAGE - 1) * 20, $offset);
+        self::assertLessThan(PHP_INT_MAX, $offset);
     }
 
     #[DataProvider('pageNumberProvider')]

@@ -59,6 +59,10 @@ services:
         arguments:
             $formLogin: '@security.authenticator.form_login.main'
             $passwordResetLimiter: '@limiter.password_reset'
+            # The reset link is built from this and never from the request's own
+            # Host header, which a client controls. See linkFor() for what that
+            # header could otherwise be made to do.
+            $siteUri: '%env(DEFAULT_URI)%'
 
 when@test:
     parameters:

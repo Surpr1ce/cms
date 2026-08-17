@@ -10,6 +10,8 @@ use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\DataCollector\DoctrineDataCollector;
 use Doctrine\Persistence\ManagerRegistry;
 
+use const PHP_INT_MAX;
+
 use function sprintf;
 
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -150,6 +152,31 @@ final class HomeControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('article'));
+    }
+
+    /**
+     * A page number nobody could reach by clicking, and what it used to do.
+     *
+     * `?page=9223372036854775807` passed the integer validator, overflowed the
+     * multiplication in Paginator::offsetFor() into a float, and threw a
+     * TypeError on the way out of an `int` return type — an unauthenticated 500
+     * on the front page, every section and label listing, the search and the
+     * audit log. The unit test for an "absurdly large" page stopped at 999999 and
+     * never reached the multiplication, which is why 868 passing tests did not
+     * see it. A review did.
+     *
+     * The listing itself is empty because the ceiling is far past anything that
+     * exists; the assertion that matters is the status.
+     */
+    public function testAPageNumberBeyondWhatAnIntegerHoldsIsNotAnError(): void
+    {
+        ArticleFactory::new()->published()->many(3)->create();
+
+        foreach ([(string) PHP_INT_MAX, '9223372036854775806', '99999999999999999999999'] as $absurd) {
+            $this->client->request('GET', '/?page='.$absurd);
+
+            self::assertResponseIsSuccessful(sprintf('page=%s was an error.', $absurd));
+        }
     }
 
     /**

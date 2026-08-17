@@ -9,9 +9,12 @@ use App\Entity\AuditEntry;
 use App\Entity\User;
 use App\Factory\ArticleFactory;
 use App\Factory\AuditEntryFactory;
+use App\Factory\CategoryFactory;
 use App\Factory\MediaFactory;
+use App\Factory\TagFactory;
 use App\Factory\UserFactory;
 use App\Repository\AuditEntryRepository;
+use App\Tests\Functional\SigningOut;
 
 use function array_map;
 
@@ -43,6 +46,7 @@ use Zenstruck\Foundry\Test\Factories;
 final class AuditLogTest extends WebTestCase
 {
     use Factories;
+    use SigningOut;
 
     private KernelBrowser $client;
 
@@ -136,6 +140,37 @@ final class AuditLogTest extends WebTestCase
         self::assertSame([[AuditAction::FileDeleted, 'a-photograph.jpg']], $this->recorded());
     }
 
+    /**
+     * Deleting a section is recorded, and this one was missing.
+     *
+     * AuditAction's own docblock says the list covers everything that "removes
+     * something", and article, page, file and account deletions all recorded.
+     * These two did not — while deleting a section quietly uncategorises every
+     * article in it and moves its subsections up a level, which is exactly the
+     * change somebody opens the log to explain.
+     */
+    public function testDeletingASectionIsRecorded(): void
+    {
+        $this->signIn([User::ROLE_EDITOR]);
+        $section = CategoryFactory::createOne(['name' => 'Obituaries', 'slug' => 'obituaries']);
+
+        $crawler = $this->client->request('GET', '/admin/manage/sections/'.$section->getId().'/edit');
+        $this->client->submit($crawler->selectButton('Delete this section')->form());
+
+        self::assertSame([[AuditAction::SectionDeleted, 'Obituaries']], $this->recorded());
+    }
+
+    public function testDeletingALabelIsRecorded(): void
+    {
+        $this->signIn([User::ROLE_EDITOR]);
+        $label = TagFactory::createOne(['name' => 'Doctrine', 'slug' => 'doctrine']);
+
+        $crawler = $this->client->request('GET', '/admin/manage/labels/'.$label->getId().'/edit');
+        $this->client->submit($crawler->selectButton('Delete this label')->form());
+
+        self::assertSame([[AuditAction::LabelDeleted, 'Doctrine']], $this->recorded());
+    }
+
     public function testAPasswordChangeIsRecordedWithoutThePassword(): void
     {
         $account = $this->signIn([User::ROLE_EDITOR], 'the-current-password');
@@ -197,7 +232,7 @@ final class AuditLogTest extends WebTestCase
 
             self::assertResponseStatusCodeSame(403, sprintf('%s reached the log.', $role));
 
-            $this->client->request('POST', '/logout');
+            $this->signOut();
         }
     }
 

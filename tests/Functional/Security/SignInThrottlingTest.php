@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Security;
 
 use App\Factory\UserFactory;
+use App\Tests\Functional\SigningOut;
 
 use function sprintf;
 
@@ -27,6 +28,7 @@ use Zenstruck\Foundry\Test\Factories;
 final class SignInThrottlingTest extends WebTestCase
 {
     use Factories;
+    use SigningOut;
 
     /**
      * Five in fifteen minutes — see the spec's Assumptions. The sixth attempt
@@ -176,7 +178,7 @@ final class SignInThrottlingTest extends WebTestCase
         $this->signIn('author@example.com', UserFactory::DEVELOPMENT_PASSWORD);
         self::assertResponseRedirects();
 
-        $this->client->request('POST', '/logout');
+        $this->signOut();
 
         // If the count had survived, this would be the sixth attempt and would
         // be refused for trying too often rather than for being wrong.

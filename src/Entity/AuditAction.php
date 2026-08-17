@@ -29,6 +29,16 @@ enum AuditAction: string
 
     case FileDeleted = 'file.deleted';
 
+    /**
+     * Deleting a section uncategorises every article in it and moves its
+     * subsections up a level — a change to a great deal of content, made by one
+     * click, and invisible afterwards from anywhere except here. It is exactly
+     * the sort of thing somebody reads a log to explain.
+     */
+    case SectionDeleted = 'section.deleted';
+
+    case LabelDeleted = 'label.deleted';
+
     case AccountCreated = 'account.created';
 
     case AccountDeleted = 'account.deleted';
@@ -58,6 +68,8 @@ enum AuditAction: string
             self::ContentRestored => 'restored',
             self::ContentDeleted => 'deleted',
             self::FileDeleted => 'deleted the file',
+            self::SectionDeleted => 'deleted the section',
+            self::LabelDeleted => 'deleted the label',
             self::AccountCreated => 'created the account',
             self::AccountDeleted => 'deleted the account',
             self::AccountPermissionsChanged => 'changed the permissions of',

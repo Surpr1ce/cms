@@ -6,9 +6,11 @@ namespace App\Command;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Service\Account\PasswordPolicy;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
+use function is_string;
 use function sprintf;
 
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -36,13 +38,6 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 )]
 final class CreateAdministratorCommand extends Command
 {
-    /**
-     * Short enough not to be a nuisance, long enough that the command is not the
-     * weak point. Anything stronger is a policy decision this project has not
-     * made, and pretending otherwise with a complexity rule would be theatre.
-     */
-    private const int MINIMUM_PASSWORD_LENGTH = 12;
-
     public function __construct(
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $entityManager,
@@ -55,7 +50,11 @@ final class CreateAdministratorCommand extends Command
     {
         $this
             ->addArgument('email', InputArgument::REQUIRED, 'The email address to sign in with')
-            ->addArgument('password', InputArgument::REQUIRED, 'The password to set')
+            // Optional so that it can be typed at a hidden prompt instead. A
+            // password given as an argument lands in shell history and is visible
+            // in `ps` to everybody else on the machine, which is a poor way to
+            // hand out administrative access.
+            ->addArgument('password', InputArgument::OPTIONAL, 'The password to set; asked for without echoing if omitted')
             ->addArgument('displayName', InputArgument::OPTIONAL, 'The name shown as an author byline');
     }
 
@@ -73,8 +72,15 @@ final class CreateAdministratorCommand extends Command
             return Command::INVALID;
         }
 
-        if (mb_strlen($password) < self::MINIMUM_PASSWORD_LENGTH) {
-            $io->error(sprintf('The password must be at least %d characters.', self::MINIMUM_PASSWORD_LENGTH));
+        if ('' === $password) {
+            // Nothing typed, or nothing to type into — a non-interactive run
+            // answers null. Either way the length check below refuses it.
+            $answer = $io->askHidden('The password to set');
+            $password = is_string($answer) ? $answer : '';
+        }
+
+        if (mb_strlen($password) < PasswordPolicy::MINIMUM_LENGTH) {
+            $io->error(PasswordPolicy::tooShort());
 
             return Command::INVALID;
         }

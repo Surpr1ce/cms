@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Factory\PasswordResetRequestFactory;
 use App\Factory\UserFactory;
 use App\Repository\PasswordResetRequestRepository;
+use App\Tests\Functional\SigningOut;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -45,6 +46,7 @@ final class PasswordResetTest extends WebTestCase
 {
     use Factories;
     use MailerAssertionsTrait;
+    use SigningOut;
 
     private KernelBrowser $client;
 
@@ -333,6 +335,41 @@ final class PasswordResetTest extends WebTestCase
         self::assertStringNotContainsString($this->onlyRequest()->getTokenHash(), $body);
     }
 
+    /**
+     * The link points at this site, whatever host the request claimed.
+     *
+     * The worst finding either audit produced. The link used to be generated with
+     * ABSOLUTE_URL inside a request, which takes its host from the incoming
+     * `Host:` header — so a stranger could POST an administrator's address with
+     * `Host: attacker.example` and that administrator would receive a genuine
+     * email from this site whose link led to the attacker. One click hands over a
+     * live token, and complete() turns a token straight into a session.
+     *
+     * `trusted_hosts` refuses the forged header outright (TrustedHostTest), so
+     * this asserts the second defence on its own: 127.0.0.1 is a *trusted* host
+     * and is not the configured one, so a link built from the request would say
+     * 127.0.0.1 here and a link built from configuration says localhost. The two
+     * defences can therefore fail independently and be seen to.
+     */
+    public function testTheEmailedLinkIsBuiltFromConfigurationRatherThanTheRequest(): void
+    {
+        UserFactory::new()->editor()->withPassword()->create(['email' => 'editor@example.com']);
+
+        $crawler = $this->client->request('GET', '/reset-password', server: ['HTTP_HOST' => '127.0.0.1']);
+        $this->client->submit(
+            $crawler->selectButton('Send the link')->form(['email' => 'editor@example.com']),
+            serverParameters: ['HTTP_HOST' => '127.0.0.1'],
+        );
+
+        $message = $this->lastEmail();
+        self::assertInstanceOf(Email::class, $message);
+
+        $text = $this->textOf($message);
+
+        self::assertStringContainsString('http://localhost/reset-password/', $text);
+        self::assertStringNotContainsString('127.0.0.1', $text);
+    }
+
     // -------------------------------------------------------------- helpers
 
     private function askForALink(string $email): string
@@ -426,11 +463,6 @@ final class PasswordResetTest extends WebTestCase
             '_username' => $email,
             '_password' => $password,
         ]));
-    }
-
-    private function signOut(): void
-    {
-        $this->client->request('POST', '/logout');
     }
 
     /**

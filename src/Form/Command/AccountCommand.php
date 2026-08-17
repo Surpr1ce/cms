@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Form\Command;
 
 use App\Entity\User;
+use App\Service\Account\PasswordPolicy;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -40,7 +41,10 @@ final class AccountCommand
      * which the form asks for rather than this class — the rule differs between
      * the two screens and a constraint here could only describe one of them.
      */
-    #[Assert\Length(min: 12, minMessage: 'A password needs at least {{ limit }} characters.')]
+    #[Assert\Length(
+        min: PasswordPolicy::MINIMUM_LENGTH,
+        minMessage: 'A password needs at least {{ limit }} characters.',
+    )]
     public ?string $password = null;
 
     public static function from(User $account): self

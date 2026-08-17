@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Admin;
 
 use App\Entity\User;
 use App\Factory\UserFactory;
+use App\Tests\Functional\SigningOut;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -25,6 +26,7 @@ use Zenstruck\Foundry\Test\Factories;
 final class ChangePasswordTest extends WebTestCase
 {
     use Factories;
+    use SigningOut;
 
     private const string CURRENT = 'the-current-password';
 
@@ -43,7 +45,7 @@ final class ChangePasswordTest extends WebTestCase
 
         self::assertResponseRedirects('/admin/account');
 
-        $this->client->request('POST', '/logout');
+        $this->signOut();
         $this->signInWith('a-brand-new-password');
 
         self::assertResponseRedirects();
@@ -55,7 +57,7 @@ final class ChangePasswordTest extends WebTestCase
 
         $this->submit(self::CURRENT, 'a-brand-new-password', 'a-brand-new-password');
 
-        $this->client->request('POST', '/logout');
+        $this->signOut();
         $this->signInWith(self::CURRENT);
         $this->client->followRedirect();
 

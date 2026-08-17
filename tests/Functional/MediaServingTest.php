@@ -35,6 +35,7 @@ use Zenstruck\Foundry\Test\Factories;
 final class MediaServingTest extends WebTestCase
 {
     use Factories;
+    use SigningOut;
 
     private KernelBrowser $client;
 
@@ -242,11 +243,6 @@ final class MediaServingTest extends WebTestCase
             '_password' => UserFactory::DEVELOPMENT_PASSWORD,
         ]));
         $this->client->followRedirect();
-    }
-
-    private function signOut(): void
-    {
-        $this->client->request('POST', '/logout');
     }
 
     private function uploadAsEditor(): Media

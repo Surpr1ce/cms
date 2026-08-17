@@ -150,6 +150,34 @@ final class ApiExposesOnlyPublishedContentTest extends WebTestCase
     }
 
     /**
+     * The same rule at a single label's own address, which is where it was
+     * missing.
+     *
+     * The collection has always called findInUse(); the item endpoint called
+     * findOneBySlug() and answered for any label in the table. Only a name and a
+     * slug, but TagResource's own description says a label here is one carried by
+     * at least one published article — so the item address contradicted the type
+     * it claimed to be, and this file did not cover it. Found by a review.
+     */
+    public function testALabelCarriedOnlyByADraftIsNotFoundAtItsOwnAddress(): void
+    {
+        $onADraft = TagFactory::createOne(['slug' => 'on-a-draft', 'name' => 'SecretProject']);
+        $used = TagFactory::createOne(['slug' => 'used', 'name' => 'Used']);
+
+        ArticleFactory::createOne()->addTag($onADraft);
+        ArticleFactory::new()->published()->create()->addTag($used);
+        $this->flush();
+
+        $this->client->request('GET', '/api/tags/on-a-draft');
+        self::assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+
+        // The published one still answers, so this is a rule rather than the
+        // endpoint being broken.
+        $this->client->request('GET', '/api/tags/used');
+        self::assertResponseIsSuccessful();
+    }
+
+    /**
      * FR-013 and SC-003. An author is a display name; everything else about the
      * person is nobody's business.
      */

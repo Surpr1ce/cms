@@ -49,6 +49,12 @@ security:
             logout:
                 path: logout
                 target: home
+                # Signing out is a state change, so it needs a token like every
+                # other one. config/packages/csrf.yaml already listed `logout`
+                # among the stateless token ids, which read as though this were
+                # already on — it was not, and without it any page an editor
+                # visits can sign them out with an <img src=".../logout">.
+                enable_csrf: true
 
     access_control:
         # The public site, explicitly. Listed before the administration rule so
@@ -70,7 +76,13 @@ security:
         # This is the coarse gate and it is all it should be. What a signed-in
         # person may do to a particular article is a voter's question, not this
         # file's.
-        - { path: ^/admin, roles: [ROLE_AUTHOR, ROLE_EDITOR, ROLE_ADMIN] }
+        #
+        # `^/admin(/|$)` rather than `^/admin`, because the looser form also
+        # closes every public address that merely starts with those five letters:
+        # a published page called "Admin team" at /admin-team demanded a sign-in
+        # and was invisible to readers. That is the opposite of what this project
+        # cares most about, and it announced that something was there.
+        - { path: ^/admin(/|$), roles: [ROLE_AUTHOR, ROLE_EDITOR, ROLE_ADMIN] }
 
 # Roles are NOT arranged in a hierarchy here, deliberately. An administrator is
 # granted an editor's permissions by the voters in src/Security/, where the grant

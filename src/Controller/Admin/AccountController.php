@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\User;
+use App\Exception\DomainException;
 use App\Exception\UserStillOwnsContent;
 use App\Form\AccountType;
 use App\Form\Command\AccountCommand;
@@ -24,11 +25,18 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Accounts. Administrators only.
  *
- * Two refusals here are not about permissions and are easy to lose:
+ * Four refusals here are not about permissions and are easy to lose:
  *
  * **An administrator may not delete their own account.** One administrator on a
  * fresh installation doing so leaves a site nobody can administer. `DELETE_ACCOUNT`
  * holds that rule, and it is asked here rather than assumed.
+ *
+ * **Nor may they remove their own administrator permission**, which reaches the
+ * same locked-out site through a different door. A security review found that one
+ * — the deletion rule had been written and the demotion rule had not.
+ *
+ * **Nor set their own password here**, where the current one is not asked for.
+ * Their account page asks; this screen exists for resetting *other* people's.
  *
  * **An account that owns content cannot be deleted.** `UserDeleter` answers with
  * a sentence naming what is owned, where the database constraint alone would
@@ -51,7 +59,6 @@ final class AccountController extends AbstractController
 
         return $this->render('admin/accounts/index.html.twig', [
             'accounts' => $this->accounts->findBy([], ['email' => 'ASC']),
-            'deleter' => $this->deleter,
         ]);
     }
 
@@ -85,11 +92,19 @@ final class AccountController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->editor->update($command, $account);
+            try {
+                $this->editor->update($command, $account, $this->currentUser());
 
-            $this->addFlash('success', 'Saved.');
+                $this->addFlash('success', 'Saved.');
 
-            return $this->redirectToRoute('admin_accounts_edit', ['id' => $account->getId()]);
+                return $this->redirectToRoute('admin_accounts_edit', ['id' => $account->getId()]);
+            } catch (DomainException $refusal) {
+                // Removing your own administrator permission, or setting your own
+                // password without proving you know the current one. The message
+                // names which and says where to go instead; the form comes back
+                // holding what was submitted rather than an error page.
+                $this->addFlash('error', $refusal->getMessage());
+            }
         }
 
         return $this->render('admin/accounts/form.html.twig', [
@@ -123,5 +138,19 @@ final class AccountController extends AbstractController
         $this->addFlash('success', sprintf('The account for %s was deleted.', $email));
 
         return $this->redirectToRoute('admin_accounts_index');
+    }
+
+    private function currentUser(): User
+    {
+        $user = $this->getUser();
+
+        // The firewall and MANAGE_ACCOUNTS both guarantee this. The guard is here
+        // because "guaranteed elsewhere" is exactly the assumption that stops
+        // being true when a route moves.
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        return $user;
     }
 }

@@ -31,6 +31,15 @@ final class TagController extends AbstractController
     )]
     public function show(string $slug, Request $request): Response
     {
+        // findOneBySlug, not findOneInUseBySlug, and that is FR-015 rather than
+        // an oversight: a label that exists renders as an empty listing rather
+        // than a 404, exactly as an empty section does. Nothing is disclosed by
+        // it — a label carried only by drafts and a label carried by nothing at
+        // all produce the same page, so the listing cannot tell a reader that
+        // somebody is drafting about the subject.
+        //
+        // The JSON resource is stricter, because its own description promises a
+        // label there is one a published article carries. See TagProvider.
         $tag = $this->tags->findOneBySlug($slug);
 
         if (!$tag instanceof Tag) {

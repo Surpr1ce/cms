@@ -10,7 +10,6 @@ use App\Form\LabelType;
 use App\Repository\TagRepository;
 use App\Security\AdministrationVoter;
 use App\Service\Taxonomy\TaxonomyEditor;
-use Doctrine\ORM\EntityManagerInterface;
 
 use function sprintf;
 
@@ -23,12 +22,13 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Labels.
  *
- * The one screen here that deletes through the entity manager rather than a
- * service, and it is worth saying why: the join table between articles and
- * labels is `ON DELETE CASCADE`, so removing a label removes the rows that
- * applied it and touches nothing else. There is no rule for a service to hold —
- * a section has one, because its articles and its subsections both need
- * somewhere to go.
+ * Deletion goes through TaxonomyEditor, which has no rule to enforce — the join
+ * table between articles and labels is `ON DELETE CASCADE`, so removing a label
+ * removes the rows that applied it and touches nothing else, where a section
+ * needs somewhere to put its articles and its subsections. What the service does
+ * hold is the audit entry, so that the deletion and the record of it cannot come
+ * apart. This screen deleted through the entity manager and recorded nothing
+ * until an audit noticed.
  */
 #[Route('/admin/manage/labels')]
 final class LabelController extends AbstractController
@@ -36,7 +36,6 @@ final class LabelController extends AbstractController
     public function __construct(
         private readonly TagRepository $labels,
         private readonly TaxonomyEditor $editor,
-        private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -101,8 +100,7 @@ final class LabelController extends AbstractController
 
         $name = $label->getName();
 
-        $this->entityManager->remove($label);
-        $this->entityManager->flush();
+        $this->editor->deleteLabel($label);
 
         $this->addFlash('success', sprintf('“%s” was deleted. The articles that carried it are untouched.', $name));
 

@@ -28,6 +28,24 @@ final readonly class Paginator
 {
     public const int DEFAULT_PER_PAGE = 20;
 
+    /**
+     * The highest page anybody is given, whatever they asked for.
+     *
+     * Two reasons, and the first is not a nicety. `offsetFor()` multiplies, and a
+     * page number near PHP_INT_MAX overflows to a float, which under
+     * `declare(strict_types=1)` makes an `int` return type throw — so
+     * `?page=9223372036854775807` was a 500 on the front page, every listing, the
+     * search and the audit log. Found by a review, not by the suite: the test for
+     * an "absurdly large" page stopped at 999999 and never reached the
+     * multiplication.
+     *
+     * The second is cheaper to state. An accepted page of 999999 asks PostgreSQL
+     * to rank twenty million rows and discard all of them, on a route nobody has
+     * to sign in for. Ten thousand pages is two hundred thousand articles, which
+     * is far past anything this CMS is for and still cheap to refuse.
+     */
+    public const int MAXIMUM_PAGE = 10_000;
+
     public function __construct(private int $perPage = self::DEFAULT_PER_PAGE)
     {
         if ($this->perPage < 1) {
@@ -50,7 +68,11 @@ final readonly class Paginator
 
         $page = filter_var((string) $raw, FILTER_VALIDATE_INT);
 
-        return false === $page || $page < 1 ? 1 : $page;
+        if (false === $page || $page < 1) {
+            return 1;
+        }
+
+        return min($page, self::MAXIMUM_PAGE);
     }
 
     public function perPage(): int

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Service\Taxonomy;
 
+use App\Entity\AuditAction;
 use App\Entity\Category;
 use App\Entity\Tag;
 use App\Form\Command\LabelCommand;
 use App\Form\Command\SectionCommand;
 use App\Repository\CategoryRepository;
 use App\Repository\TagRepository;
+use App\Service\Audit\AuditLog;
 use App\Service\Slug\UniqueSlugGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -37,6 +39,7 @@ final readonly class TaxonomyEditor
         private CategoryRepository $sections,
         private TagRepository $labels,
         private UniqueSlugGenerator $slugs,
+        private AuditLog $audit,
     ) {
     }
 
@@ -74,6 +77,31 @@ final readonly class TaxonomyEditor
         $label->setName($command->name);
 
         $this->entityManager->flush();
+    }
+
+    /**
+     * Deleting a label.
+     *
+     * There is no rule to enforce — the join table between articles and labels is
+     * `ON DELETE CASCADE`, so the rows that applied it go with it and nothing else
+     * is touched. A section is different, which is why CategoryDeleter exists and
+     * this is a method rather than a class of its own.
+     *
+     * It is here rather than in the controller only so that the deletion and the
+     * log entry cannot come apart: an audit review found that removing a label
+     * recorded nothing, while removing an article, a page, a file or an account
+     * all did.
+     */
+    public function deleteLabel(Tag $label): void
+    {
+        // Read before the row goes. Afterwards there is nothing left to name it
+        // with, which is the case the log exists for.
+        $name = $label->getName();
+
+        $this->entityManager->remove($label);
+        $this->entityManager->flush();
+
+        $this->audit->record(AuditAction::LabelDeleted, $name);
     }
 
     private function applyToSection(SectionCommand $command, Category $section): void

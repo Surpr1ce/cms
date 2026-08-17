@@ -28,6 +28,10 @@ use Doctrine\ORM\Mapping as ORM;
  * is usable, and it is consumed — the three things that can happen to it.
  */
 #[ORM\Entity(repositoryClass: PasswordResetRequestRepository::class)]
+// Every visit to a reset link looks a row up by this column, on a route nobody
+// has to sign in for. Without the index that is a sequential scan of the whole
+// table, which is a cheap thing for a stranger to ask for repeatedly.
+#[ORM\Index(name: 'idx_password_reset_token_hash', fields: ['tokenHash'])]
 class PasswordResetRequest
 {
     /**

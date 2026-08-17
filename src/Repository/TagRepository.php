@@ -26,9 +26,42 @@ final class TagRepository extends ServiceEntityRepository implements SluggedRepo
         return null !== $this->findOneBy(['slug' => $slug]);
     }
 
+    /**
+     * Finds a label whatever carries it. The administration screens need this;
+     * public routes must use findOneInUseBySlug() instead.
+     */
     public function findOneBySlug(string $slug): ?Tag
     {
         return $this->findOneBy(['slug' => $slug]);
+    }
+
+    /**
+     * The public counterpart: a label only exists here if a published article
+     * carries it.
+     *
+     * findInUse() already keeps the tag cloud and the sitemap from naming the
+     * subjects of unfinished drafts, but the address of a single label answered
+     * for any label in the table — so /topics/redundancy-consultation confirmed
+     * that somebody is drafting about it, which is the whole thing the published
+     * scope exists to prevent. An audit found the JSON endpoint doing it; the
+     * website was doing the same.
+     *
+     * setMaxResults(1) rather than DISTINCT: several published articles may carry
+     * the label, and all that is being asked is whether at least one does.
+     */
+    public function findOneInUseBySlug(string $slug): ?Tag
+    {
+        $tag = $this->createQueryBuilder('tag')
+            ->innerJoin(Article::class, 'article', Join::WITH, 'tag MEMBER OF article.tags')
+            ->andWhere('tag.slug = :slug')
+            ->andWhere('article.status = :status')
+            ->setParameter('slug', $slug)
+            ->setParameter('status', ContentStatus::Published)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $tag instanceof Tag ? $tag : null;
     }
 
     /**

@@ -6,6 +6,7 @@ namespace App\Form;
 
 use App\Entity\User;
 use App\Form\Command\AccountCommand;
+use App\Service\Account\PasswordPolicy;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -58,8 +59,8 @@ final class AccountType extends AbstractType
                 'label' => $creating ? 'Password' : 'New password',
                 'required' => $creating,
                 'help' => $creating
-                    ? 'At least 12 characters.'
-                    : 'At least 12 characters. Leave blank to keep the current password.',
+                    ? PasswordPolicy::tooShort()
+                    : PasswordPolicy::tooShort().' Leave blank to keep the current password.',
             ])
         ;
     }
