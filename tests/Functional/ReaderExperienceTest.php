@@ -245,11 +245,16 @@ final class ReaderExperienceTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/articles/entirely-alone');
 
-        // The "older / newer" half may still be there — that is the rest of the
-        // site in order, not a claim about relatedness. What must be absent is
-        // the claim.
+        // Only the claim. The "older / newer" half may well name the other
+        // article — that is the rest of the site in order, which is true of it,
+        // and not an assertion that the two have anything to do with each other.
+        //
+        // The first version of this test also demanded that the other article be
+        // absent entirely. It passed here and failed in CI, because whether it
+        // appeared depended on which publication dates the faker seed produced.
+        // A test that passes on one seed and not another is a test about the
+        // seed.
         self::assertStringNotContainsString('More like this', $crawler->filter('main')->text());
-        self::assertStringNotContainsString('Unrelated to it', $crawler->filter('main')->text());
     }
 
     // -------------------------------------------------------- and the rest
