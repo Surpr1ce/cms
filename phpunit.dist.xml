@@ -13,6 +13,16 @@
     <php>
         <ini name="display_errors" value="1" />
         <ini name="error_reporting" value="-1" />
+
+        <!--
+            Set explicitly so the suite behaves the same on a developer machine
+            and in CI. A functional test boots a kernel per request, and at
+            around 500 tests the default 128M on this machine started failing
+            partway through with no useful message. This is headroom, not a
+            relaxed rule: nothing about what the tests assert changes.
+        -->
+        <ini name="memory_limit" value="512M" />
+
         <server name="APP_ENV" value="test" force="true" />
         <server name="SHELL_VERBOSITY" value="-1" />
     </php>
