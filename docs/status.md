@@ -110,10 +110,29 @@ Branch `005-media-uploads`. Lead images are real files now.
 JPEG; a browser told "this is a JPEG" and handed a PNG refuses to render it. The
 first real mismatch the header found was our own.
 
+### Feature 006 — read-only JSON API
+
+Branch `006-read-only-api`. The last piece of the stack that was installed and unused.
+
+| Area | State |
+| --- | --- |
+| Addresses | `/api/articles`, `/api/pages`, `/api/sections`, `/api/tags`, each with an item address by slug. Eight routes, all `GET` |
+| Read models | `src/ApiResource/` — plain objects, **not** mapped entities. A field not written there is not exposed, so an entity gaining a column cannot put an email address or a password hash into the API |
+| Providers | `src/State/` — call the same repository methods the website's controllers call. **No provider contains a status comparison**, which is what makes ADR 2's claim structural rather than a matter of discipline |
+| Read-only | Every write method against every address is refused, and the tests assert the content afterwards as well as the status |
+| Whole project | **680 tests, 1645 assertions, passing** |
+
+**The test worth knowing about**: `testTheApiAndTheWebsiteAgreeAboutWhatIsPublished`
+asks both delivery mechanisms what is published and compares them. It is the
+assertion [ADR 2](adr/0002-twig-monolith-with-read-only-api.md) exists to make
+true, and nothing had checked it until this feature.
+
 ## Not done
 
 | Area | State |
 | --- | --- |
+| API authentication and rate limiting | **Deliberately absent.** The API exposes exactly what the public website exposes, so a key would protect nothing while suggesting it did. Recorded as a decision, not an omission |
+| API search, filtering and sorting | Not started. Sections and labels only, newest first |
 | Screens for sections, labels and accounts | Not started — the generic CRUD the conventions assign to EasyAdmin |
 | Image resizing, thumbnails, format conversion | Not started. Every image is served at the size it was uploaded |
 | A caching layer in front of file serving | Not started. A PHP process serves every image, which is the price of storing outside the web root and is worth measuring before optimising |
