@@ -1,0 +1,53 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}{{ section ? 'Edit section' : 'New section' }} — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <p class="text-sm text-muted">
+        <a href="{{ path('admin_section_index') }}" class="text-muted no-underline hover:underline">Sections</a>
+    </p>
+
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight">
+        {{ section ? 'Edit section' : 'New section' }}
+    </h1>
+
+    {{ form_start(form) }}
+        <div class="mt-8 max-w-xl space-y-5">
+            {{ form_row(form.name) }}
+            {{ form_row(form.description) }}
+            {{ form_row(form.parent) }}
+
+            <button type="submit" class="rounded bg-ink px-4 py-2 text-white hover:bg-accent">
+                {{ section ? 'Save' : 'Create' }}
+            </button>
+        </div>
+    {{ form_end(form) }}
+
+    {% if section %}
+        <div class="mt-10 max-w-xl rounded border border-red-200 p-4">
+            <h2 class="text-sm font-semibold text-red-800">Delete</h2>
+
+            <p class="mt-1 text-sm text-muted">
+                Articles filed here become uncategorised and are not deleted.
+                {% if section.hasChildren %}
+                    The sections inside this one move up to
+                    {{ section.parent ? '“' ~ section.parent.name ~ '”' : 'the top level' }}.
+                {% endif %}
+            </p>
+
+            <form method="post"
+                  action="{{ path('admin_section_delete', { id: section.id }) }}"
+                  class="mt-3"
+                  data-confirm="Delete this section? Its articles become uncategorised.">
+                <input type="hidden" name="_token" value="{{ csrf_token('section-delete-' ~ section.id) }}">
+                <button type="submit"
+                        class="rounded border border-red-300 px-3 py-1.5 text-sm text-red-800 hover:bg-red-50">
+                    Delete this section
+                </button>
+            </form>
+        </div>
+
+        {# Shown, never editable. A reader may have linked to it. #}
+        <p class="mt-6 text-xs text-muted">Address: <code>/sections/{{ section.slug }}</code></p>
+    {% endif %}
+{% endblock %}

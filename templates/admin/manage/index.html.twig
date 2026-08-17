@@ -1,0 +1,55 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Manage — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <h1 class="text-2xl font-semibold tracking-tight">Manage</h1>
+
+    <p class="mt-2 max-w-prose text-muted">
+        The things articles and pages are filed under, and the people who write them.
+    </p>
+
+    <div class="mt-8 grid gap-4 sm:grid-cols-2">
+        <a href="{{ path('admin_section_index') }}"
+           class="rounded border border-rule p-5 no-underline hover:border-accent">
+            <span class="block font-semibold text-ink">Sections</span>
+            <span class="mt-1 block text-2xl font-semibold tabular-nums text-ink">{{ sectionCount }}</span>
+            <span class="mt-1 block text-sm text-muted">
+                What part of the site an article is in. An article belongs to at most one.
+            </span>
+        </a>
+
+        <a href="{{ path('admin_label_index') }}"
+           class="rounded border border-rule p-5 no-underline hover:border-accent">
+            <span class="block font-semibold text-ink">Labels</span>
+            <span class="mt-1 block text-2xl font-semibold tabular-nums text-ink">{{ labelCount }}</span>
+            <span class="mt-1 block text-sm text-muted">
+                What an article is about. It can carry as many as it needs.
+            </span>
+        </a>
+
+        {#
+           Only an administrator. An editor runs the site; deciding who may run
+           it is a different authority, which AdministrationVoter draws the line
+           on and this asks about rather than guessing from a role.
+        #}
+        {% if is_granted('MANAGE_ACCOUNTS') %}
+            <a href="{{ path('admin_accounts_index') }}"
+               class="rounded border border-rule p-5 no-underline hover:border-accent">
+                <span class="block font-semibold text-ink">Accounts</span>
+                <span class="mt-1 block text-2xl font-semibold tabular-nums text-ink">{{ accountCount }}</span>
+                <span class="mt-1 block text-sm text-muted">
+                    Who may sign in, and what each of them may do.
+                </span>
+            </a>
+
+            <a href="{{ path('admin_audit_log') }}"
+               class="rounded border border-rule p-5 no-underline hover:border-accent">
+                <span class="block font-semibold text-ink">Log</span>
+                <span class="mt-1 block text-sm text-muted">
+                    Publishing, removing and granting — who did what, and when.
+                </span>
+            </a>
+        {% endif %}
+    </div>
+{% endblock %}

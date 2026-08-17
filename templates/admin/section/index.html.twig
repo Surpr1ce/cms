@@ -1,0 +1,63 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Sections — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <p class="text-sm text-muted">
+                <a href="{{ path('admin_manage') }}" class="text-muted no-underline hover:underline">Manage</a>
+            </p>
+            <h1 class="mt-1 text-2xl font-semibold tracking-tight">Sections</h1>
+        </div>
+
+        <a href="{{ path('admin_section_new') }}"
+           class="rounded bg-ink px-4 py-2 text-sm text-white no-underline hover:bg-accent">
+            New section
+        </a>
+    </div>
+
+    <p class="mt-2 max-w-prose text-muted">
+        A section answers “what part of the site is this in”. An article belongs to at most one.
+    </p>
+
+    {% if sections is empty %}
+        <p class="mt-8 text-muted">Nothing here yet.</p>
+    {% else %}
+        <div class="mt-6 overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+                <thead>
+                    <tr class="border-b border-rule text-left">
+                        <th class="py-2 pr-4 font-semibold">Name</th>
+                        <th class="py-2 pr-4 font-semibold">Inside</th>
+                        <th class="py-2 pr-4 font-semibold">Address</th>
+                        <th class="py-2 font-semibold"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for section in sections %}
+                        <tr class="border-b border-rule/60">
+                            <td class="py-2 pr-4">
+                                <a href="{{ path('admin_section_edit', { id: section.id }) }}"
+                                   class="font-medium text-ink no-underline hover:underline">{{ section.name }}</a>
+                            </td>
+                            <td class="py-2 pr-4 text-muted">
+                                {{ section.parent ? section.parent.name : '—' }}
+                            </td>
+                            <td class="py-2 pr-4">
+                                <a href="{{ path('category_show', { slug: section.slug }) }}"
+                                   class="text-muted no-underline hover:underline">
+                                    <code>/sections/{{ section.slug }}</code>
+                                </a>
+                            </td>
+                            <td class="py-2 text-right">
+                                <a href="{{ path('admin_section_edit', { id: section.id }) }}"
+                                   class="text-sm text-accent no-underline hover:underline">Edit</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

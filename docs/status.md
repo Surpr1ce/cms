@@ -8,15 +8,23 @@ as such at the top of the file.
 
 ## Where this stands
 
-Fourteen features, all on `master`, `composer qa` green after each and CI green
-since feature 011. **865 tests, 2545 assertions.**
+Sixteen features, all on `master`, `composer qa` green after each and CI green
+since feature 011. **851 tests, 2575 assertions.**
 
 A reader can find the site, read it, search it and subscribe to it. An editor can
 write, publish, upload, and get back in after forgetting their password. An
 administrator can manage sections, labels, accounts and files, and read a record
-of who did what. Two editors cannot silently overwrite each other, a draft is
-invisible through five different delivery mechanisms, and every response carries
-a content security policy.
+of who did what — through one administration interface rather than two. Two
+editors cannot silently overwrite each other, a draft is invisible through five
+different delivery mechanisms, and every response carries a content security
+policy that allows no inline script and no inline style.
+
+The last two features contained no planned work at all. Both came from opening
+the running site and looking at it, and between them they found images that were
+one pixel, a test suite writing into the developer's uploads, forms whose fields
+were invisible, and two administration areas that looked like different products.
+**A test suite proves the rules hold; it does not prove somebody can use the
+thing.**
 
 What remains below falls into three kinds, and the distinction matters more than
 the length of the list:
@@ -381,13 +389,38 @@ green suite proves the rules hold, not that somebody opening the thing sees what
 they should. None of these four would have been caught by another test. They
 needed somebody to look.
 
+### Feature 016 — administration interface
+
+Branch `016-admin-interface`. Two screenshots and a question, neither of which
+any of the 871 tests could have produced.
+
+| Area | State |
+| --- | --- |
+| Forms | **`templates/form/theme.html.twig`**, registered globally. Every control carries the site's border, padding and width; labels sit above their fields; help beneath; errors beneath and attached to the field, which is itself marked |
+| Why they were broken | `form_row()` renders Symfony's default markup and Tailwind's preflight strips the border and padding a browser would give it. The result was a label running into an invisible field — for twelve features, with every test passing, because a crawler finds fields by name and does not care what they look like |
+| One administration area | Sections, labels and accounts are hand-written screens at `/admin/manage/sections`, `/labels` and `/accounts`, in the same layout as articles, pages and files. They were EasyAdmin, with its own layout, typeface, controls and navigation — a visible seam every time somebody moved between them |
+| What that had to preserve | Every rule the generic screens were overridden to keep, each still tested: an address generated once and then fixed, articles surviving a section's deletion, subsections moving up to their grandparent, a stored hash never rendered, blank meaning unchanged, self-deletion refused, an owning account refused with a sentence |
+| Removed | `easycorp/easyadmin-bundle` and two packages it brought |
+| Tightened | **`style-src` no longer allows `unsafe-inline`.** It existed only because those screens carried style attributes on elements this project did not author |
+| The landing page | Counts of what exists — only of things the viewer may open — the viewer's own unfinished drafts, and for an administrator the most recent log entries |
+| Whole project | **851 tests, 2575 assertions, passing** |
+
+**The fault behind all three**, and this is the second feature in a row to say
+it: a test suite proves the rules hold, not that somebody opening the thing can
+use it.
+
+**A concession is worth re-reading when its reason changes.** The `unsafe-inline`
+for styles was documented, justified and correct when it was written, and it
+stopped being needed the moment the thing that needed it was replaced — for
+reasons that had nothing to do with the policy.
+
 ## Not done
 
 | Area | State |
 | --- | --- |
 | API authentication and rate limiting | **Deliberately absent.** The API exposes exactly what the public website exposes, so a key would protect nothing while suggesting it did. Recorded as a decision, not an omission |
 | API search, filtering and sorting | Not started. Sections and labels only, newest first |
-| Bulk operations on sections, labels and accounts | **Deliberately absent.** Batch delete is disabled on every manage screen; a bulk action is the one route most likely to be re-added later without anybody remembering it bypasses a confirmation |
+| Bulk operations on sections, labels and accounts | **Deliberately absent.** Every deletion is one thing at a time, with a confirmation. A bulk action is the one route most likely to be added later without anybody remembering it bypasses that |
 | Format conversion | Not started. A derived image keeps the original's format; serving WebP or AVIF to browsers that accept them is a real improvement and a decision of its own |
 | Responsive image markup | Not started. A page names one size rather than offering a `srcset`, so a narrow screen still receives the size a wide one would |
 | A cache in front of the application | Still not started, and now much less pressing. A reader who has seen an image no longer asks for it again at all, which was most of the cost |
@@ -397,7 +430,7 @@ needed somebody to look.
 | Concurrent editing of **sections, labels, accounts and files** | Still last-write-wins. Feature 009 covers articles and pages, where a conflict costs an afternoon; a section is a name and a parent, and a file record a description and alternative text. Recorded rather than pretended away |
 | Showing an editor *what* changed | Not started. A refused save says somebody else changed the content; it does not show their version beside yours |
 | A rich-text editor | Not started, deliberately. The body is a text area containing markup, so sanitising does not depend on an editor behaving |
-| Inline **styles** are still allowed | `style-src` keeps `unsafe-inline`, openly. The generic administration screens carry style attributes on elements this project does not author, and an attribute cannot be marked with a nonce — naming a nonce there would make a browser ignore `unsafe-inline` altogether and break those screens. A style can deface a page; a script can take a session |
+| ~~Inline **styles** are still allowed~~ | **Closed by feature 016.** `style-src` is `'self'` alone. The concession existed only for the generic administration screens, which no longer exist |
 | A policy reporting endpoint | Not started. A `report-to` pointing nowhere is a comment, so the policy is enforced instead |
 | Rate limiting on anything but sign-in | Not started. The public site and the read-only API are unthrottled |
 | Public registration | **Deliberately absent.** Accounts are created by an administrator; a sign-up form is a way to fill a database with strangers |

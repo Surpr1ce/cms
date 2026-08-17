@@ -12,7 +12,7 @@ human or agent — works under.
 | Framework | Symfony 8.1 |
 | Templating | Twig |
 | Persistence | Doctrine ORM 3 + PostgreSQL 16 |
-| Admin | EasyAdmin 5 (generic CRUD) + hand-written Twig controllers (content, media) |
+| Admin | Hand-written Twig controllers throughout |
 | Read API | API Platform 4, read-only |
 | Assets | AssetMapper + Tailwind (no Node build step) |
 | Tests | PHPUnit 13, Foundry, DAMA transaction isolation |
@@ -86,7 +86,8 @@ leaves an artifact in the repository.
   (`publish()`, `archive()`), not `setStatus()`.
 - **Repositories**: return typed collections; never leak `QueryBuilder`.
 - **Templates**: `templates/admin/` and `templates/public/`; shared partials in
-  `templates/components/`.
+  `templates/components/`; the form theme in `templates/form/theme.html.twig`,
+  registered globally so a new form is styled without anybody remembering.
 - **Migrations**: generated with `doctrine:migrations:diff`, never hand-edited
   after being committed.
 

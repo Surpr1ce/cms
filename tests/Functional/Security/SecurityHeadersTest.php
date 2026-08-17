@@ -201,9 +201,11 @@ final class SecurityHeadersTest extends WebTestCase
             '/admin/pages',
             '/admin/media',
             '/admin/manage',
-            '/admin/manage/category',
-            '/admin/manage/tag',
-            '/admin/manage/user',
+            '/admin/manage/sections',
+            '/admin/manage/labels',
+            '/admin/manage/accounts',
+            '/admin/log',
+            '/admin/account',
         ] as $address) {
             $crawler = $this->client->request('GET', $address);
 

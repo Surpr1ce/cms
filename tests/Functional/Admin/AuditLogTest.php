@@ -298,10 +298,10 @@ final class AuditLogTest extends WebTestCase
     {
         self::assertNotNull($id);
 
-        $crawler = $this->client->request('GET', '/admin/manage/user');
-        $token = (string) $crawler->filter('form#action-confirmation-form input[name="token"]')->attr('value');
+        $crawler = $this->client->request('GET', '/admin/manage/accounts/'.$id.'/edit');
+        self::assertResponseIsSuccessful();
 
-        $this->client->request('POST', '/admin/manage/user/'.$id.'/delete', ['token' => $token]);
+        $this->client->submit($crawler->selectButton('Delete this account')->form());
     }
 
     /**

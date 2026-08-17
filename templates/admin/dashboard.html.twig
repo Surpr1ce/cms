@@ -1,13 +1,111 @@
 {% extends 'admin/layout.html.twig' %}
 
+{% block title %}Administration — {{ site_name }}{% endblock %}
+
 {% block main %}
     <h1 class="text-2xl font-semibold tracking-tight">Administration</h1>
 
-    <p class="mt-2 text-muted">
-        Signed in as {{ app.user.displayName }}.
-    </p>
+    <p class="mt-2 text-muted">Signed in as {{ app.user.displayName }}.</p>
 
-    <div class="mt-8 grid gap-4 sm:grid-cols-2">
+    {# --- what is here ------------------------------------------------- #}
+
+    {#
+       A tile only where the viewer may open what it counts. An author who
+       cannot reach the pages screen is not shown how many pages there are —
+       a number they can neither act on nor verify is not information, and a
+       link that leads to a refusal is worse than no link.
+    #}
+    {% set tiles = [
+        { label: 'Drafts', count: drafts, route: 'admin_article_index' },
+        { label: 'Published', count: published, route: 'admin_article_index' },
+        { label: 'Archived', count: archived, route: 'admin_article_index' },
+    ] %}
+
+    {% if is_granted('PAGE_EDIT', page_probe()) %}
+        {% set tiles = tiles|merge([{ label: 'Pages', count: pages, route: 'admin_page_index' }]) %}
+    {% endif %}
+
+    {% if is_granted('MANAGE_MEDIA') %}
+        {% set tiles = tiles|merge([{ label: 'Files', count: files, route: 'admin_media_index' }]) %}
+    {% endif %}
+
+    <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {% for tile in tiles %}
+            <a href="{{ path(tile.route) }}"
+               class="rounded border border-rule p-4 no-underline hover:border-accent">
+                <span class="block text-2xl font-semibold tabular-nums text-ink">{{ tile.count }}</span>
+                <span class="mt-0.5 block text-sm text-muted">{{ tile.label }}</span>
+            </a>
+        {% endfor %}
+    </div>
+
+    <div class="mt-10 grid gap-8 lg:grid-cols-2">
+        {# --- what the viewer left unfinished --------------------------- #}
+
+        <section>
+            <div class="flex items-baseline justify-between gap-4">
+                <h2 class="text-lg font-semibold tracking-tight">Your drafts</h2>
+
+                <a href="{{ path('admin_article_new') }}"
+                   class="text-sm text-accent no-underline hover:underline">New article</a>
+            </div>
+
+            {% if mine is empty %}
+                <p class="mt-3 text-sm text-muted">
+                    Nothing unfinished. <a href="{{ path('admin_article_new') }}"
+                                           class="text-accent no-underline hover:underline">Start something</a>.
+                </p>
+            {% else %}
+                <ul class="mt-3 divide-y divide-rule/60 border-y border-rule/60">
+                    {% for article in mine %}
+                        <li class="py-2">
+                            <a href="{{ path('admin_article_edit', { id: article.id }) }}"
+                               class="text-sm font-medium text-ink no-underline hover:underline">
+                                {{ article.title }}
+                            </a>
+                            <span class="ml-1 text-xs text-muted">
+                                started {{ article.createdAt|date('j M Y') }}
+                            </span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </section>
+
+        {# --- what happened while they were away ------------------------ #}
+
+        {% if is_granted('MANAGE_ACCOUNTS') %}
+            <section>
+                <div class="flex items-baseline justify-between gap-4">
+                    <h2 class="text-lg font-semibold tracking-tight">Lately</h2>
+
+                    <a href="{{ path('admin_audit_log') }}"
+                       class="text-sm text-accent no-underline hover:underline">The whole log</a>
+                </div>
+
+                {% if recent is empty %}
+                    <p class="mt-3 text-sm text-muted">Nothing has been recorded yet.</p>
+                {% else %}
+                    <ul class="mt-3 divide-y divide-rule/60 border-y border-rule/60">
+                        {% for entry in recent %}
+                            <li class="py-2 text-sm">
+                                <span class="text-muted">{{ entry.occurredAt|date('j M, H:i') }}</span>
+                                {{ entry.actorLabel }}
+                                {{ entry.action.label }}
+                                <span class="text-muted">“{{ entry.subject }}”</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </section>
+        {% endif %}
+    </div>
+
+    {# --- everywhere else ------------------------------------------------ #}
+
+    <h2 class="mt-10 text-lg font-semibold tracking-tight">Everything else</h2>
+
+    <div class="mt-3 grid gap-4 sm:grid-cols-2">
         <a href="{{ path('admin_article_index') }}"
            class="rounded border border-rule p-5 no-underline hover:border-accent">
             <span class="block font-semibold text-ink">Articles</span>
@@ -29,14 +127,27 @@
                 <span class="mt-1 block text-sm text-muted">Upload images and documents.</span>
             </a>
         {% endif %}
+
         {% if is_granted('MANAGE_TAXONOMY') %}
             <a href="{{ path('admin_manage') }}"
                class="rounded border border-rule p-5 no-underline hover:border-accent">
                 <span class="block font-semibold text-ink">Manage</span>
                 <span class="mt-1 block text-sm text-muted">
-                    Sections, labels{% if is_granted('MANAGE_ACCOUNTS') %} and accounts{% endif %}.
+                    Sections, labels{% if is_granted('MANAGE_ACCOUNTS') %}, accounts and the log{% endif %}.
                 </span>
             </a>
         {% endif %}
+
+        <a href="{{ path('admin_account') }}"
+           class="rounded border border-rule p-5 no-underline hover:border-accent">
+            <span class="block font-semibold text-ink">Your account</span>
+            <span class="mt-1 block text-sm text-muted">Change your password.</span>
+        </a>
+
+        <a href="{{ path('home') }}"
+           class="rounded border border-rule p-5 no-underline hover:border-accent">
+            <span class="block font-semibold text-ink">View site</span>
+            <span class="mt-1 block text-sm text-muted">What a reader sees.</span>
+        </a>
     </div>
 {% endblock %}

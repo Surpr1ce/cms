@@ -1,0 +1,76 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}{{ account ? 'Edit account' : 'New account' }} — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <p class="text-sm text-muted">
+        <a href="{{ path('admin_accounts_index') }}" class="text-muted no-underline hover:underline">Accounts</a>
+    </p>
+
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight">
+        {{ account ? 'Edit account' : 'New account' }}
+    </h1>
+
+    {{ form_start(form) }}
+        <div class="mt-8 max-w-xl space-y-5">
+            {{ form_row(form.email) }}
+            {{ form_row(form.displayName) }}
+            {{ form_row(form.roles) }}
+            {{ form_row(form.password) }}
+
+            <button type="submit" class="rounded bg-ink px-4 py-2 text-white hover:bg-accent">
+                {{ account ? 'Save' : 'Create' }}
+            </button>
+        </div>
+    {{ form_end(form) }}
+
+    {% if account %}
+        <div class="mt-10 max-w-xl rounded border border-red-200 p-4">
+            <h2 class="text-sm font-semibold text-red-800">Delete</h2>
+
+            {% if not is_granted('DELETE_ACCOUNT', account) %}
+                {#
+                   An administrator may not remove their own account: one
+                   administrator on a fresh installation doing so leaves a site
+                   nobody can administer. The button is absent rather than
+                   disabled, and the route refuses it as well.
+                #}
+                <p class="mt-1 text-sm text-muted">
+                    You cannot delete the account you are signed in as.
+                </p>
+            {#
+               Not `canBeDeleted|default(true)`: Twig's `default` filter treats
+               `false` as empty, so a genuine "no, this account owns things"
+               would come back as `true` and offer the button anyway. The
+               controller always passes it on this screen, so it is read
+               directly.
+            #}
+            {% elseif not canBeDeleted %}
+                <p class="mt-1 text-sm text-muted">
+                    This account has written articles or uploaded files. Content keeps its author,
+                    so the account cannot be removed while it owns any.
+                </p>
+            {% else %}
+                <p class="mt-1 text-sm text-muted">
+                    The record of what this account did stays in the log, attributed to the address
+                    below.
+                </p>
+
+                <form method="post"
+                      action="{{ path('admin_accounts_delete', { id: account.id }) }}"
+                      class="mt-3"
+                      data-confirm="Delete this account? It cannot be undone.">
+                    <input type="hidden" name="_token" value="{{ csrf_token('account-delete-' ~ account.id) }}">
+                    <button type="submit"
+                            class="rounded border border-red-300 px-3 py-1.5 text-sm text-red-800 hover:bg-red-50">
+                        Delete this account
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+
+        <p class="mt-6 text-xs text-muted">
+            Created {{ account.createdAt|date('j F Y') }}.
+        </p>
+    {% endif %}
+{% endblock %}
