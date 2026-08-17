@@ -33,7 +33,9 @@ src/
   Factory/         Foundry factories — one per entity, used by fixtures and tests
   Command/         Console commands — operator tasks with no HTTP surface
   Form/            Form types, and the command objects they fill
-    Command/       Plain data carrying what a form collected — never an entity
+    Command/       Plain data carrying what a form collected — scalars, enums and
+                   the entities somebody picked from a list; never the entity being
+                   edited, and never a repository, a service or a manager
   Controller/      HTTP boundary — thin, delegates to services
     Admin/         Hand-written admin screens
   Security/        Voters, authenticators
@@ -71,7 +73,9 @@ leaves an artifact in the repository.
    `specs/`; they are deliverables, not scratch notes.
 3. **Execute** — implement against the plan. One concern per commit.
 4. **Verify** — `composer qa` must pass before anything is considered done.
-   Failing tests are reported, never silently skipped.
+   Failing tests are reported, never silently skipped. Before a merge, run the
+   `architecture-guardian` and `security-auditor` agents: the gate proves the rules
+   somebody thought to write down, and those two look for the ones nobody did.
 5. **Ship** — commit with a conventional message, push, update documentation.
 
 ## Conventions
@@ -105,6 +109,17 @@ composer phpstan     # static analysis only
 PHPStan runs at **level max**. Do not lower the level or add a baseline entry to
 silence a finding — fix the code or, if the finding is genuinely wrong, add a
 narrowly scoped ignore with a comment explaining why.
+
+**The architecture is part of the gate too.** PHPStan at level max is perfectly
+happy with an entity that renders a template, so `tests/Unit/Architecture/`
+asserts what this section describes: the import matrix per layer, no
+`QueryBuilder` leaving a repository, no query built in a controller, no action
+over 25 lines of code, no class over seven constructor dependencies, no reach for
+the container, no mutable static state, `final` everywhere it belongs, and the
+two exceptions [ADR 13](docs/adr/0013-two-places-where-the-domain-knows-about-delivery.md)
+records still being the only two. It boots nothing and runs in a tenth of a
+second. A rule that matters and cannot be asserted belongs in
+`.claude/agents/architecture-guardian.md` instead — never in prose alone.
 
 ## Testing
 
