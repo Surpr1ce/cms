@@ -31,6 +31,7 @@ final readonly class UploadedFileValidator
 {
     public function __construct(
         private StoredFilenameGenerator $filenames,
+        private TrailingDataDetector $trailingData,
         private int $maximumBytes,
     ) {
     }
@@ -59,6 +60,14 @@ final readonly class UploadedFileValidator
 
         if (null === $detected || !$this->filenames->supports($detected)) {
             throw UnsupportedMediaType::forType($detected ?? 'unknown', StoredFilenameGenerator::supportedTypes());
+        }
+
+        // A valid image with a payload stapled to the end of it is still a valid
+        // image, and `finfo` says so — on some machines. It said otherwise on
+        // others, which is how this check came to exist: see
+        // TrailingDataDetector for the whole story.
+        if ($this->trailingData->hasTrailingData($file->getPathname(), $detected)) {
+            throw UnsupportedMediaType::forType($detected.' with data appended', StoredFilenameGenerator::supportedTypes());
         }
 
         return $detected;

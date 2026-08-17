@@ -292,7 +292,40 @@ which is also what a 404 deserves on its own terms.
 | Full article bodies in the feed | Deliberately absent. The feed carries summaries, so it announces rather than duplicates |
 | Caching of any kind | Not started, and deliberately so — the menu costs one query per request |
 | Security and quality audits | Not started |
-| GitHub Actions CI | Written, **never executed**. The workflow is unverified |
+| GitHub Actions CI | **Running, and green as of feature 011.** It had been red on every merge since 007 and nobody had looked. See below |
+
+## CI was red for four features, and this file said it had never run
+
+Worth recording in full, because the failure was in the process rather than in
+any line of code.
+
+`docs/status.md` claimed the workflow was "written, never executed" from the
+first feature until the eleventh. It had in fact been running on every push since
+the beginning, and failing on every merge since feature 007. Nobody had looked,
+including whoever wrote the sentence saying it had never run — the claim was
+inherited from one commit to the next and stopped being checked.
+
+What it was catching:
+
+- **Three failures that the development machine could not see.** Symfony does not
+  rebuild a non-debug container when a file changes, and the only tests that boot
+  one are the ones asserting a 404 is identical whatever address missed. Locally
+  they passed against a stale container; in CI, which builds from nothing every
+  time, they failed. That is precisely the class of bug CI exists to find, and it
+  found it four features before anybody read the log.
+- **A security check whose answer depended on the operating system.** A PNG with
+  PHP source appended was refused on Windows and accepted on Linux. The reason
+  turned out to be neither PHP nor libmagic: **Windows Defender locks a temporary
+  file containing `<?php system(...)`**, so `finfo` could not read it and reported
+  no type at all. The test had been written to match that, and its comment
+  explained the refusal as the detector being "stricter than expected".
+
+Both are fixed. The 404 pages no longer carry preview metadata, and the polyglot
+rule is now explicit in `App\Service\Media\TrailingDataDetector` — a file that
+carries bytes past its own end is refused, the same way on every machine.
+
+The lesson is one line, and it is the constitution's: **a status this file
+reports must be a status somebody checked.** `gh run list` takes two seconds.
 
 ## Known gaps in what *is* built
 

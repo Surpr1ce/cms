@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Media;
 use App\Exception\UnsupportedMediaType;
 use App\Exception\UploadIsTooLarge;
 use App\Service\Media\StoredFilenameGenerator;
+use App\Service\Media\TrailingDataDetector;
 use App\Service\Media\UploadedFileValidator;
 
 use const DIRECTORY_SEPARATOR;
@@ -98,16 +99,21 @@ final class UploadedFileValidatorTest extends TestCase
     /**
      * A polyglot — a real image with PHP source appended — is refused outright.
      *
-     * This test was written expecting the opposite. The reasoning was that
-     * appended bytes leave a valid image, so it would be accepted as one, and
-     * that this was safe anyway because of everything downstream: stored outside
-     * the web root, under a generated name, served with the detected type and a
-     * no-sniff header, never interpreted by anything.
+     * This test has a history worth keeping.
      *
-     * The detector is stricter than that. It does not recognise the result as
-     * any type at all, so the file never reaches storage. Better than expected,
-     * and asserted as it actually behaves — the alternative was a test claiming
-     * a weaker guarantee than the code provides.
+     * It was written expecting acceptance — appended bytes leave a valid image,
+     * and the file is harmless anyway because of everything downstream: stored
+     * outside the web root, under a generated name, served with the detected
+     * type and a no-sniff header, interpreted by nothing. It was then changed to
+     * expect refusal, because `finfo` on the development machine refused it.
+     *
+     * Both were wrong, in the same way: they described what one installation of
+     * libmagic happened to do. CI, on Linux, accepted the same file — so the
+     * suite was green on one machine and red on the other, and the disagreement
+     * was invisible until CI's log was actually read.
+     *
+     * The rule is now explicit and lives in TrailingDataDetector, so the answer
+     * is the same everywhere and does not depend on a library's mood.
      */
     public function testAPolyglotImageWithAppendedSourceIsRefused(): void
     {
@@ -156,7 +162,7 @@ final class UploadedFileValidatorTest extends TestCase
 
     public function testAFileOverTheLimitIsRefused(): void
     {
-        $validator = new UploadedFileValidator(new StoredFilenameGenerator(), 100);
+        $validator = new UploadedFileValidator(new StoredFilenameGenerator(), new TrailingDataDetector(), 100);
 
         $this->expectException(UploadIsTooLarge::class);
 
@@ -165,7 +171,7 @@ final class UploadedFileValidatorTest extends TestCase
 
     public function testTheRefusalNamesTheSizeAndTheLimit(): void
     {
-        $validator = new UploadedFileValidator(new StoredFilenameGenerator(), 100);
+        $validator = new UploadedFileValidator(new StoredFilenameGenerator(), new TrailingDataDetector(), 100);
 
         try {
             $validator->validate($this->fileWith(str_repeat('x', 200), 'big.png'));
@@ -203,7 +209,11 @@ final class UploadedFileValidatorTest extends TestCase
 
     private function validator(): UploadedFileValidator
     {
-        return new UploadedFileValidator(new StoredFilenameGenerator(), self::EIGHT_MEGABYTES);
+        return new UploadedFileValidator(
+            new StoredFilenameGenerator(),
+            new TrailingDataDetector(),
+            self::EIGHT_MEGABYTES,
+        );
     }
 
     private function fileWith(string $contents, string $name): File
