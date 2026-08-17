@@ -74,6 +74,19 @@ php bin/console --env=test doctrine:migrations:migrate --no-interaction
 The fixtures build 4 accounts, 3 sections, 5 labels, 12 articles across all three
 states, 6 pages and 6 files.
 
+The files are real images, drawn by GD rather than committed to the repository —
+1200×800, two flat bands of colour, a different picture per file and the same one
+on every load. They are deliberately not photographs: nobody should mistake
+development data for real content, and they are large enough that every derived
+size is a genuine reduction.
+
+Loading the fixtures also removes what the previous dataset left on disk, so the
+uploads directory holds exactly what the catalogue holds. Run it as often as you
+like.
+
+The test suite uses `var/test-uploads`, not `var/uploads`, so running it never
+touches anything you uploaded by hand.
+
 ## Signing in
 
 All four fixture accounts can sign in, using the password in
@@ -113,3 +126,20 @@ symfony serve                # or: php -S localhost:8000 -t public
 [`status.md`](status.md) before assuming a blank page is a fault — as of feature
 001 the project had a complete content model and no routes at all, so every URL
 returned a 404 by design.
+
+## Operator commands
+
+```bash
+# Create or promote an administrator. The only way in before any screen exists.
+php bin/console app:create-administrator you@example.com
+
+# Remove resized images whose originals are no longer catalogued.
+# Safe at any moment: a derived image is a cache and is made again on request.
+php bin/console app:media:prune-derived --dry-run
+php bin/console app:media:prune-derived
+```
+
+There is deliberately no command that removes *original* uploads. A derived image
+can be remade; an original is the only copy of somebody's file, and a command
+that removed uncatalogued ones would destroy an upload whose database row failed
+to save.

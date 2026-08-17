@@ -59,3 +59,18 @@ services:
         arguments:
             $formLogin: '@security.authenticator.form_login.main'
             $passwordResetLimiter: '@limiter.password_reset'
+
+when@test:
+    parameters:
+        # A directory of its own, and this was overdue.
+        #
+        # The suite writes real files: every upload test, and every request for a
+        # derived size. Sharing the development directory meant a test run left
+        # its debris among somebody's actual uploads, and it meant no test could
+        # safely tidy up after itself — deleting a stray file might have deleted
+        # a real one.
+        #
+        # Discovered while writing app:media:prune-derived, whose test needs to
+        # clean the directory it works on and must never be able to touch
+        # anything of yours.
+        app.upload_directory: '%kernel.project_dir%/var/test-uploads'

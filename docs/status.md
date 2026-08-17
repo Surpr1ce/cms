@@ -362,6 +362,25 @@ capability rather than a deliberate absence or an optimisation.
 would catch every write automatically, which sounds better and is worse: it would
 know neither what a change *meant* nor who made it.
 
+### Feature 015 — release readiness
+
+Branch `015-release-readiness`. Not a planned feature: a list of things found by
+walking the running site with a script before cutting a release, every one of
+which was invisible to a green test suite.
+
+| Area | State |
+| --- | --- |
+| Development images | **Drawn, not shipped.** `PlaceholderImage` generates a 1200×800 picture with GD, seeded from the stored filename, encoded as the type the record claims. They were one-by-one pixels, which stopped being adequate the moment feature 012 started resizing |
+| Test uploads | The test environment has an uploads directory of its own. Both environments used to resolve `app.upload_directory` to the same path, so the suite wrote into the developer's uploads and no test could safely tidy up after itself |
+| Orphans | `php bin/console app:media:prune-derived`, with `--dry-run`. Removes derived images whose originals are no longer catalogued, keeps everything in use, and **leaves alone any name it cannot parse** |
+| Fixture reloads | `doctrine:fixtures:load` now leaves the disk holding exactly what the catalogue holds. It purged the database and left every file behind, so a few reloads filled the directory with rubbish nothing could identify |
+| Whole project | **871 tests, 2573 assertions, passing** |
+
+**The lesson, recorded because it is the one this project keeps relearning:** a
+green suite proves the rules hold, not that somebody opening the thing sees what
+they should. None of these four would have been caught by another test. They
+needed somebody to look.
+
 ## Not done
 
 | Area | State |
@@ -372,7 +391,8 @@ know neither what a change *meant* nor who made it.
 | Format conversion | Not started. A derived image keeps the original's format; serving WebP or AVIF to browsers that accept them is a real improvement and a decision of its own |
 | Responsive image markup | Not started. A page names one size rather than offering a `srcset`, so a narrow screen still receives the size a wide one would |
 | A cache in front of the application | Still not started, and now much less pressing. A reader who has seen an image no longer asks for it again at all, which was most of the cost |
-| Cleaning up derived images nobody asks for | Not started. They are deleted with their original, but a size that stops being used leaves files behind until somebody empties the directory — which is safe to do at any time |
+| Cleaning up derived images automatically | Not started, and probably not wanted. `app:media:prune-derived` does it on demand and a scheduled job to run it would be infrastructure this project does not otherwise assume |
+| Removing orphaned **originals** | **Deliberately not offered as a command.** A derived image is a cache and can be remade; an original is the only copy of somebody's upload, and a command that removed uncatalogued ones would destroy an upload whose database row failed to save. The development fixtures do it, because they have just emptied the database and know what they are looking at |
 | Private files | Not possible. Serving applies no restriction beyond "anybody may read", because a file in a published article has to be public and the CMS has no notion of a private one |
 | Concurrent editing of **sections, labels, accounts and files** | Still last-write-wins. Feature 009 covers articles and pages, where a conflict costs an afternoon; a section is a name and a parent, and a file record a description and alternative text. Recorded rather than pretended away |
 | Showing an editor *what* changed | Not started. A refused save says somebody else changed the content; it does not show their version beside yours |
