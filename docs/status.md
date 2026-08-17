@@ -10,7 +10,8 @@ as such at the top of the file.
 
 Nineteen features — eighteen on `master`, and feature 019 on its branch until it
 merges — `composer qa` green after each and CI green since feature 011.
-**1020 tests, 3208 assertions.**
+**1047 tests, 3243 assertions**, twenty-seven of which assert the architecture
+itself rather than any behaviour.
 
 A reader can find the site, read it, search it and subscribe to it. An editor can
 write, publish, upload, and get back in after forgetting their password. An
@@ -556,6 +557,76 @@ six-second wait expired while the module graph was still loading, so it blamed
 the enhancement for not having run yet. It waits for the page to be ready now
 instead of sleeping through it.
 
+### After feature 019 — the architecture became a gate rather than a paragraph
+
+`CLAUDE.md` has said since feature 001 that dependencies point inwards and that
+the domain must not know about HTTP or Twig. Nothing checked it. PHPStan at level
+max will happily analyse an entity that renders a template, and a reviewer sees a
+boundary crossing only if they read the `use` statements of the file that crossed
+it — which is how [ADR 13](adr/0013-two-places-where-the-domain-knows-about-delivery.md)
+came to be written *after* an audit found four such imports that had been in place
+for features.
+
+`tests/Unit/Architecture/` closes that. Two files, 27 assertions, no kernel and no
+database, a tenth of a second inside the unit suite:
+
+- **`LayeringTest`** — the import matrix, layer by layer, with every exception a
+  commented decision: no HTTP or Twig under `Entity/`, `Repository/`, `Search/` or
+  `Service/`; no `QueryBuilder` leaving a repository; no query built in a
+  controller; a `Form/Command` importing nothing it could act with; and a
+  directory added to `src/` with no row in the matrix failing by name. It also
+  pins ADR 13's list of exceptions — a fourth service taking an `UploadedFile`, or
+  a second reading the actor from the session, fails.
+- **`DesignPrinciplesTest`** — the habits: an action capped at 25 lines of code, a
+  class at seven constructor dependencies, no reach for the container, no mutable
+  static state, and `final` on every class in a layer that has no designed
+  inheritance.
+
+Both were written from the standard rules rather than invented — the dependency
+rule from hexagonal architecture, single responsibility and dependency inversion
+from SOLID, the thin-controller rule from `CLAUDE.md` itself. What the project did
+**not** adopt is the shape those rules are usually shipped in: no `Domain/`,
+`Application/`, `Infrastructure/` split, no bounded contexts, no command bus. This
+is a layered Symfony monolith and the tests assert *its* layers. A dependency tool
+(Deptrac, PHPArkitect) would do the same job with a sixth tool in the toolchain
+and a configuration language of its own; two test files in the suite that already
+runs need neither.
+
+The first run found real work rather than confirming the status quo:
+
+- **`PasswordResetController` composed and sent the only email this application
+  sends**, generating the security-critical link itself. Thirty lines of code in
+  one action, and the link — which must come from configuration and never from the
+  request — could only be tested through HTTP. Now `PasswordResetMailer`, in the
+  application layer, with the body a `TemplatedEmail` template so Twig stays out
+  of it.
+- **The completion screen was one action branching on the request method.**
+  Showing a form and storing a password are two acts with two answers, and the
+  second signs somebody in; they are two routes now, same path, same link in the
+  email.
+- **`CLAUDE.md` said a form command carries "never an entity"**, while five
+  properties across three commands hold the section, parent or image somebody
+  picked from a list. The document was wrong rather than the code: Symfony's
+  `EntityType` hands over the entity, and carrying an identifier instead would
+  mean every service looking it up again with no rule to apply. The rule now says
+  what it means — never the entity being edited, and never anything a command
+  could act with.
+
+`.claude/agents/architecture-guardian.md` is the other half: the judgement calls a
+text scan cannot make — a rule living in the wrong layer, an invariant bypassed
+through a setter, the same rule written twice with nothing tying the copies
+together. `CLAUDE.md`'s phase 4 now asks for it before a merge, beside the
+security pass.
+
+**Its first run found fifteen things and the layer directions were not among
+them.** Nothing inward imports outwards; the domain still knows nothing of HTTP or
+Twig. What has drifted is *where rules live* — four of them at the delivery
+boundary — and how far feature 019's own success criterion reached. Both are listed
+under known gaps below rather than described as done, and two of the fifteen are
+already closed: a dead `TagRepository::findAllOrdered()` whose last caller feature
+019 replaced, and a docblock in `PasswordResetMailer` that claimed more than the
+class does.
+
 ### After feature 017 — the reviewer and security passes
 
 Not a feature: the two reviews the constitution asks for at phase 4, run for the
@@ -660,6 +731,49 @@ reports must be a status somebody checked.** `gh run list` takes two seconds.
 
 Recorded because behaviour that looks complete and is not is worse than a missing
 feature.
+
+- **Four reads reachable from a route are still unbounded**, so feature 019's
+  SC-001 — "no route in the application loads an unbounded number of rows" — is
+  written wider than what was built. `/api/pages` and `/api/sections` return every
+  row (`ArticleProvider` shows the paginated shape they should have); the article
+  and page edit forms have five `query_builder` closures with no limit, so the
+  media library and every page, section and label are read whole two clicks from
+  the screens 019 paginated; and `PageRepository::findPublishedChildrenOf()` is
+  unbounded behind `/{slug}`. Found by the architecture audit, not by the feature.
+- **Four rules live at the delivery boundary rather than behind a service**, which
+  makes `CLAUDE.md`'s "Controller — thin, delegates to services" a convention with
+  exceptions rather than a rule: `Admin\MediaController::describe()` holds the only
+  copy of "a description cannot be empty" and writes through the entity manager
+  (`MediaUploader` accepts a blank one, so the same field has two rules depending
+  on the screen); `Admin\ArticleController::delete()` removes through the entity
+  manager while `PageDeleter`, `MediaDeleter`, `CategoryDeleter` and `UserDeleter`
+  all exist; `Admin\DashboardController` composes three query specifications in the
+  action; and `PageController::publishedAncestorsOf()` decides a published-only
+  rule in PHP, one lazy load per level.
+- **A page can be given an address that is a permanent 404.** `PageController`
+  keeps the reserved list (`articles`, `sections`, `topics`, `api`, `admin`) and
+  refuses those addresses when serving them, but `UniqueSlugGenerator` has never
+  seen it — so a page titled "Articles" saves with a success message and is
+  unreachable to every reader.
+- **`MenuRuntime` memoises without a way to forget.** Harmless under php-fpm, where
+  the process ends with the response; under a worker runtime it would serve one
+  request's menu to the next, including pages unpublished since.
+  `Security\Csp\NonceGenerator` holds the same shape *with* a `forget()`, wired from
+  `SecurityHeadersSubscriber` — that is the pattern to copy.
+- **`AdminExtension` and `PageController::probe()` fabricate a `Page` entity** to
+  give `PageVoter` a subject for a question that has no subject, while
+  `AdministrationVoter` exists for exactly that and already answers three such
+  questions. Two mechanisms for one question, and the delivery layer uses the wrong
+  one.
+- **"Who is this account" is written six times.** Three copies of compare-by-id
+  with an object-identity fallback, and four of `isEditorial()`. Only one pair is
+  pinned by a test (`ArticleVisibilityMatchesTheVoterTest`); the drift that would
+  matter — `AccountEditor` and `AdministrationVoter` disagreeing about an
+  administrator demoting themselves — would be silent.
+- **The JSON API's copy of "an unpublished parent is not named" has no test.**
+  `PageResource` filters it, `PageController` and `MenuRuntime` filter it too, and
+  the functional API test only ever creates a published parent — on the one surface
+  `CLAUDE.md`'s "the same data through Twig and the JSON API" claim rests on.
 
 - **Slug regeneration is not enforced.** `PublishableContent` guarantees an
   address stops changing after publication, because that needs no other row. It

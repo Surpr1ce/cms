@@ -83,3 +83,25 @@ kept saying the same thing.
   roles and ownership, proven by comparison rather than by inspection.
 - **SC-003** Every paginated administration screen issues the same number of
   queries whatever the page holds.
+
+## Afterwards — SC-001 was written wider than this feature was built
+
+Recorded here rather than quietly narrowed, because the criterion is the claim
+somebody will read next.
+
+SC-001 says *no route* loads an unbounded number of rows. What was built bounds
+the routes the table at the top enumerates, plus the sitemap. The architecture
+audit run before the release found four reads it does not cover, all of them
+reachable from a route:
+
+- `/api/pages` and `/api/sections` — `PageProvider` and `CategoryProvider` return
+  every row; `ArticleProvider` shows the paginated shape they should have.
+- The article and page edit forms — five `query_builder` closures with no limit,
+  so the media library, every page, every section and every label are read whole
+  two clicks from the screens this feature paginated.
+- `/{slug}` — `PageRepository::findPublishedChildrenOf()` is unbounded, which is
+  fine for a menu and is not what a route should rely on.
+
+They are tracked in [`docs/status.md`](../../docs/status.md) under known gaps.
+None is a regression this feature introduced; all four are the same debt it was
+written to pay off, in places its table did not name.
