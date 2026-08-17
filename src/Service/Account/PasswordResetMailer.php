@@ -23,9 +23,12 @@ use Symfony\Component\Routing\RequestContext;
  * could only be tested through an HTTP request.
  *
  * The body is a template *named* on the message rather than rendered here.
- * `TemplatedEmail` is rendered by the mailer's own listener, which keeps Twig out
- * of the application layer — the boundary `tests/Unit/Architecture/LayeringTest`
- * asserts — so this class chooses the wording without doing any rendering.
+ * `TemplatedEmail` is rendered by the mailer's own listener, so this class chooses
+ * the wording without doing any rendering — but naming a template is still a
+ * step towards delivery, and this is the third place the domain takes one.
+ * {@see docs/adr/0013-two-places-where-the-domain-knows-about-delivery.md}, whose
+ * amendment records it, and `LayeringTest::testTheExceptionsRecordedInAdr13HaveNotGrown()`,
+ * which pins this file as the only one allowed to.
  */
 final readonly class PasswordResetMailer
 {

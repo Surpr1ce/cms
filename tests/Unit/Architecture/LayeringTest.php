@@ -25,6 +25,8 @@ use function sprintf;
 use function str_replace;
 use function str_starts_with;
 
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Finder\Finder;
 
 /**
@@ -162,12 +164,26 @@ final class LayeringTest extends TestCase
                 $http,
                 'Twig\\',
                 'Symfony\Component\Form',
+                // The bridges and the bundles are where the framework's delivery
+                // layer lives: `Symfony\Bridge\Twig\Mime\BodyRenderer` renders a
+                // template, `Symfony\Bundle\FrameworkBundle\Controller\AbstractController`
+                // is a controller. Both used to pass this row, which the audit
+                // before the release pointed out — a rule that forbids
+                // `Twig\Environment` and admits the bridge that wraps it is a rule
+                // with a door beside it.
+                'Symfony\Bridge',
+                'Symfony\Bundle',
             ],
             [
                 // A form's command object is what a service is *given* — plain
                 // data carrying what somebody filled in, which `CLAUDE.md`
                 // requires never to be an entity. The form type itself stays out.
                 'App\Form\Command',
+                // The three exceptions ADR 13 records, and nothing else. Each is
+                // pinned to the file that may hold it by
+                // testTheExceptionsRecordedInAdr13HaveNotGrown().
+                TemplatedEmail::class,
+                Security::class,
                 // An upload arrives as HttpFoundation's File. Wrapping it in a
                 // type of our own would buy the appearance of independence and
                 // nothing else: the bytes still come from a request, and every
@@ -353,13 +369,18 @@ final class LayeringTest extends TestCase
      * That ADR exists because an audit found four such imports that had been there
      * for features with nobody saying so, and its stated gain is precisely this:
      * "an audit can check that the list has not grown; it could not check a rule
-     * everybody believed was absolute while four files broke it." A rule with two
+     * everybody believed was absolute while four files broke it." A rule with three
      * named exceptions is checkable. A rule with an unknown number is a sentence
      * in a document.
      *
-     * A fourth file taking an `UploadedFile`, or a second reading the signed-in
-     * account from the session, fails here — and the fix is either to not do it or
-     * to amend the ADR and this list together.
+     * The third exception was found by the architecture pass before this release:
+     * extracting `PasswordResetMailer` moved a Twig *template name* into the
+     * application layer. The ADR was amended rather than the list quietly
+     * extended — which is the whole point of it being a list.
+     *
+     * A fourth file taking an `UploadedFile`, a second reading the signed-in
+     * account from the session, or a second naming a template fails here — and the
+     * fix is either to not do it or to amend the ADR and this list together.
      */
     public function testTheExceptionsRecordedInAdr13HaveNotGrown(): void
     {
@@ -380,6 +401,13 @@ final class LayeringTest extends TestCase
             $this->filesImporting('Symfony\Bundle\SecurityBundle', ...$domain),
             'ADR 13 allows one class to read the actor from the session, because for the log a '
             .'missing actor and nobody at all must stay distinguishable.',
+        );
+
+        self::assertSame(
+            ['src/Service/Account/PasswordResetMailer.php'],
+            $this->filesImporting('Symfony\Bridge\Twig', ...$domain),
+            'ADR 13 allows one class to name a template, and only through TemplatedEmail — which '
+            .'is a message that says which template, not a renderer.',
         );
     }
 

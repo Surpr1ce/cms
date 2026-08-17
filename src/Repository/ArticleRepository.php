@@ -55,6 +55,35 @@ final class ArticleRepository extends ServiceEntityRepository implements Slugged
     }
 
     /**
+     * Just the two columns a sitemap entry is made of, newest first.
+     *
+     * Not a micro-optimisation. The document may hold fifty thousand addresses,
+     * and `findPublished()` would hydrate fifty thousand managed articles —
+     * every body, every excerpt, each with its original-data snapshot in the
+     * identity map — to print a slug and a date. On an unauthenticated route
+     * anybody may request as often as they like, that is the difference between
+     * a large response and a dead worker. The security pass before the release
+     * raised it, correctly, as this feature having *widened* the old ten-thousand
+     * cap rather than only having bounded what was unbounded.
+     *
+     * `getArrayResult()` rather than partial entities: a partial object still
+     * enters the identity map and still pretends to be an article.
+     *
+     * @return list<array{slug: string, updatedAt: DateTimeImmutable}> newest first
+     */
+    public function findPublishedAddresses(int $limit): array
+    {
+        /** @var list<array{slug: string, updatedAt: DateTimeImmutable}> $rows */
+        $rows = $this->publishedQuery()
+            ->select(self::ALIAS.'.slug', self::ALIAS.'.updatedAt')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+
+        return $rows;
+    }
+
+    /**
      * @return list<Article> newest first
      */
     public function findPublished(int $limit = 20, int $offset = 0): array

@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Admin;
 
 use App\Entity\User;
 use App\Factory\ArticleFactory;
+use App\Factory\AuditEntryFactory;
 use App\Factory\MediaFactory;
 use App\Factory\PageFactory;
 use App\Factory\TagFactory;
@@ -71,6 +72,15 @@ final class ListingsArePaginatedTest extends WebTestCase
         yield 'files' => ['/admin/media', 'ul li', 0];
         yield 'accounts' => ['/admin/manage/accounts', 'table tbody tr', 1];
         yield 'labels' => ['/admin/manage/labels', 'table tbody tr', 0];
+
+        // The sixth screen, and the one this file's own docblock said a provider
+        // exists to stop anybody forgetting. It was forgotten: the audit log has
+        // been paginated since feature 014, through the same Paginator, and was
+        // left out of the provider until the pass before the release found the
+        // gap. No defect behind it — the log stores the actor as text, so it has
+        // no lazy association to trip the query count — but SC-003 says *every*
+        // paginated administration screen, and five is not every.
+        yield 'log' => ['/admin/log', 'table tbody tr', 0];
     }
 
     #[DataProvider('listingProvider')]
@@ -266,6 +276,9 @@ final class ListingsArePaginatedTest extends WebTestCase
                 '/admin/manage/labels' => TagFactory::createOne([
                     'name' => sprintf('Label %d', $nth),
                     'slug' => sprintf('label-%d', $nth),
+                ]),
+                '/admin/log' => AuditEntryFactory::createOne([
+                    'subject' => sprintf('Entry %d', $nth),
                 ]),
                 // A screen added to the provider with nothing to fill it would
                 // otherwise pass every test above by listing nothing at all.

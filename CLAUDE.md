@@ -116,8 +116,9 @@ asserts what this section describes: the import matrix per layer, no
 `QueryBuilder` leaving a repository, no query built in a controller, no action
 over 25 lines of code, no class over seven constructor dependencies, no reach for
 the container, no mutable static state, `final` everywhere it belongs, and the
-two exceptions [ADR 13](docs/adr/0013-two-places-where-the-domain-knows-about-delivery.md)
-records still being the only two. It boots nothing and runs in a tenth of a
+three exceptions [ADR 13](docs/adr/0013-two-places-where-the-domain-knows-about-delivery.md)
+records still being the only three, each pinned to the one file allowed to hold
+it. It boots nothing and runs in a tenth of a
 second. A rule that matters and cannot be asserted belongs in
 `.claude/agents/architecture-guardian.md` instead — never in prose alone.
 

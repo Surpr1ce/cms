@@ -10,8 +10,9 @@ as such at the top of the file.
 
 Nineteen features — eighteen on `master`, and feature 019 on its branch until it
 merges — `composer qa` green after each and CI green since feature 011.
-**1047 tests, 3243 assertions**, twenty-seven of which assert the architecture
-itself rather than any behaviour.
+**1059 tests, 3308 assertions**, twenty-seven of which assert the architecture
+itself rather than any behaviour, plus twenty browser checks that `composer qa`
+deliberately does not run.
 
 A reader can find the site, read it, search it and subscribe to it. An editor can
 write, publish, upload, and get back in after forgetting their password. An
@@ -575,8 +576,9 @@ database, a tenth of a second inside the unit suite:
   `Service/`; no `QueryBuilder` leaving a repository; no query built in a
   controller; a `Form/Command` importing nothing it could act with; and a
   directory added to `src/` with no row in the matrix failing by name. It also
-  pins ADR 13's list of exceptions — a fourth service taking an `UploadedFile`, or
-  a second reading the actor from the session, fails.
+  pins ADR 13's list of exceptions to the files allowed to hold them — a fourth
+  service taking an `UploadedFile`, a second reading the actor from the session,
+  or a second naming a Twig template, fails.
 - **`DesignPrinciplesTest`** — the habits: an action capped at 25 lines of code, a
   class at seven constructor dependencies, no reach for the container, no mutable
   static state, and `final` on every class in a layer that has no designed
@@ -619,13 +621,30 @@ together. `CLAUDE.md`'s phase 4 now asks for it before a merge, beside the
 security pass.
 
 **Its first run found fifteen things and the layer directions were not among
-them.** Nothing inward imports outwards; the domain still knows nothing of HTTP or
-Twig. What has drifted is *where rules live* — four of them at the delivery
-boundary — and how far feature 019's own success criterion reached. Both are listed
-under known gaps below rather than described as done, and two of the fifteen are
-already closed: a dead `TagRepository::findAllOrdered()` whose last caller feature
-019 replaced, and a docblock in `PasswordResetMailer` that claimed more than the
-class does.
+them.** Nothing inward imports outwards; no entity, repository or service knows
+what HTTP is, beyond the three exceptions ADR 13 records and the suite now pins.
+What had drifted is *where rules live* — four of them at the delivery boundary —
+and how far feature 019's own success criterion reached; both are listed under
+known gaps below rather than described as done.
+
+**A second pass before the release closed nine more.** It caught the thing the
+first pass had created: extracting `PasswordResetMailer` moved a Twig *template
+name* into the application layer, which made "the domain knows nothing of Twig"
+false as written — ADR 13 is amended to record the third exception and
+`LayeringTest` pins it, along with the door beside it (the `Service` row forbade
+`Twig\Environment` while admitting every `Symfony\Bridge` and `Symfony\Bundle`
+class, `BodyRenderer` and `AbstractController` included). Also closed: the
+sitemap's spend policy moved out of the controller action into `SitemapAddresses`
+where a test can hand it a ceiling of four and watch which lists come back empty;
+the sitemap stopped hydrating up to fifty thousand entities to print a slug and a
+date, which the security pass rightly called a *widening* of the old ten-thousand
+cap; the reset form now posts to the POST route by name rather than to the GET
+route that happens to share its path; the CSRF check on that route got the test
+whose absence meant deleting it left the suite green; the reset link's
+"configuration, not the request" rule got a unit test that hands the router an
+attacker's host on purpose; and `/admin/log` — the sixth paginated screen, missing
+from the provider whose own docblock says a provider exists so nobody forgets one
+— joined `ListingsArePaginatedTest`.
 
 ### After feature 017 — the reviewer and security passes
 
@@ -732,14 +751,15 @@ reports must be a status somebody checked.** `gh run list` takes two seconds.
 Recorded because behaviour that looks complete and is not is worse than a missing
 feature.
 
-- **Four reads reachable from a route are still unbounded**, so feature 019's
+- **Five reads reachable from a route are still unbounded**, so feature 019's
   SC-001 — "no route in the application loads an unbounded number of rows" — is
-  written wider than what was built. `/api/pages` and `/api/sections` return every
-  row (`ArticleProvider` shows the paginated shape they should have); the article
-  and page edit forms have five `query_builder` closures with no limit, so the
-  media library and every page, section and label are read whole two clicks from
-  the screens 019 paginated; and `PageRepository::findPublishedChildrenOf()` is
-  unbounded behind `/{slug}`. Found by the architecture audit, not by the feature.
+  written wider than what was built. `/api/pages`, `/api/sections` and `/api/tags`
+  return every row (`ArticleProvider` shows the paginated shape they should have);
+  the article and page edit forms have five `query_builder` closures with no limit,
+  so the media library and every page, section and label are read whole two clicks
+  from the screens 019 paginated; and `PageRepository::findPublishedChildrenOf()`
+  is unbounded behind `/{slug}`. Found by the architecture and security audits,
+  not by the feature.
 - **Four rules live at the delivery boundary rather than behind a service**, which
   makes `CLAUDE.md`'s "Controller — thin, delegates to services" a convention with
   exceptions rather than a rule: `Admin\MediaController::describe()` holds the only
@@ -802,6 +822,12 @@ feature.
 
 ## Known constraints
 
+- **`APP_SECRET` is empty in `.env` and nothing refuses to start without it.** A
+  deployment that forgets to set it in the environment or in `.env.local` derives
+  CSRF tokens and signed URIs from an empty string, silently. It belongs on the
+  deployment checklist beside `composer install --no-dev`; raised by the security
+  pass before the first release. (`.env.dev` carries a committed development
+  secret on purpose, which `docs/audit.md` already records.)
 - ~~**Docker is unavailable on the development machine.**~~ **No longer true as of
   2026-08-17.** Docker 29.7.2 with WSL2 is installed and working, and
   `compose.yaml` has been verified — `docker compose up -d database` reaches a

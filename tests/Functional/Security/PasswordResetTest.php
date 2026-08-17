@@ -153,6 +153,43 @@ final class PasswordResetTest extends WebTestCase
     }
 
     /**
+     * The token on the form, not the one in the link.
+     *
+     * Both actions behind `/reset-password/{token}` were one action until the
+     * architecture pass split them by method, and the CSRF check lives in the POST
+     * half. It survived the split — but the security pass pointed out that
+     * deleting the check left the whole suite green, on the one route where the
+     * consequence is somebody else's password. So this asserts it: a submission
+     * without a valid form token changes nothing.
+     *
+     * Asserted on the stored hash rather than on a status code, because an
+     * anonymous visitor meeting an access-denied exception is sent to the sign-in
+     * page rather than shown a 403 — and what matters is not which page came back
+     * but that the password did not change.
+     */
+    public function testASubmissionWithoutAValidFormTokenChangesNothing(): void
+    {
+        $account = UserFactory::new()->editor()->withPassword()->create(['email' => 'editor@example.com']);
+        $before = $this->reload($account)->getPassword();
+
+        $link = $this->linkFromTheEmailFor('editor@example.com');
+
+        $this->client->request('POST', $link, [
+            '_token' => 'not-the-token-that-was-issued',
+            'password' => 'a-brand-new-password',
+            'confirmation' => 'a-brand-new-password',
+        ]);
+
+        self::assertFalse($this->client->getResponse()->isSuccessful(), 'A forged submission was accepted.');
+        self::assertSame($before, $this->reload($account)->getPassword());
+
+        // And the link still works for the person who actually holds it, so the
+        // refusal did not spend the token on their behalf.
+        $this->client->request('GET', $link);
+        self::assertResponseIsSuccessful();
+    }
+
+    /**
      * FR-007, SC-003. A token stored as it appears in the link is a working
      * link for anybody who can read the database.
      */

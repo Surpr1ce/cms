@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\ContentStatus;
 use App\Entity\Media;
 use App\Entity\Page;
+use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -42,6 +43,28 @@ final class PageRepository extends ServiceEntityRepository implements SluggedRep
             ->getOneOrNullResult();
 
         return $result instanceof Page ? $result : null;
+    }
+
+    /**
+     * The two columns a sitemap entry is made of.
+     *
+     * See `ArticleRepository::findPublishedAddresses()` for why the sitemap reads
+     * columns rather than entities: the document is bounded at fifty thousand
+     * addresses, and hydrating fifty thousand pages to print a slug and a date is
+     * how an unauthenticated route becomes a way to exhaust memory.
+     *
+     * @return list<array{slug: string, updatedAt: DateTimeImmutable}>
+     */
+    public function findPublishedAddresses(int $limit): array
+    {
+        /** @var list<array{slug: string, updatedAt: DateTimeImmutable}> $rows */
+        $rows = $this->publishedQuery()
+            ->select(self::ALIAS.'.slug', self::ALIAS.'.updatedAt')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+
+        return $rows;
     }
 
     /**
