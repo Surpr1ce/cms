@@ -54,14 +54,37 @@ Branch `002-public-website`. Merged into feature 001's model; the site renders.
 | Functional test suite | **73 tests** — the suite that was empty until this feature |
 | Whole project | **379 tests, 780 assertions, passing** |
 
+### Feature 003 — authentication and authorisation
+
+Branch `003-authentication`. The door is fitted; the rooms behind it are feature 004.
+
+| Area | State |
+| --- | --- |
+| Sign-in and sign-out | `/login`, `/logout`, form login against an entity provider, CSRF-protected |
+| The gate | `^/admin` requires a signed-in account holding a content role. Anonymous → redirect; recognised but unpermitted → 403 |
+| Voters | `ArticleVoter` (ownership plus role), `PageVoter` (role only — a page has no author), `AdministrationVoter` (taxonomy, files, accounts) |
+| Role model | **No `role_hierarchy`.** An administrator is granted an editor's permissions explicitly in each voter, so every grant is visible and unit-testable. See [ADR 9](adr/0009-voters-instead-of-role-hierarchy.md) |
+| Bootstrap | `php bin/console app:create-administrator` creates or promotes an account, so access exists before any interface does |
+| Fixture accounts | All four can sign in, with the password written openly in `UserFactory::DEVELOPMENT_PASSWORD` |
+| Whole project | **492 tests, 973 assertions, passing** |
+
+**Two defects the tests found before the code shipped**: the article voter
+granted permission on ownership alone, so an account whose author role had been
+revoked would have kept every permission over everything it wrote; and two tests
+of role revocation passed while proving nothing, because they wrote through a
+discarded entity manager. Both are recorded in the feature's `tasks.md`.
+
 ## Not done
 
 | Area | State |
 | --- | --- |
-| `symfony-reviewer` pass on features 001 and 002 | **Open.** The constitution requires it at phase 4 of the workflow; the sessions that built both features could not spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md` |
+| **Rate limiting on the sign-in form** | **Not implemented.** Nothing counts how many times somebody tries the handle. Listed prominently because "the administration area is closed" invites the assumption that it is also guarded, and it is not |
+| Registration, password reset, password change, email | Not started |
+| "Remember me", two-factor, session expiry policy | Not started |
+| Audit log of who did what | Not started |
+| `symfony-reviewer` pass on features 001, 002 and 003 | **Open.** The constitution requires it at phase 4 of the workflow; the sessions that built both features could not spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md` |
 | Wrong-role functional tests | Not applicable yet. `docs/testing.md` requires an anonymous case *and* a wrong-role case for every route; every route so far is public, so there is no role to be wrong. It starts applying with the first protected route |
-| Security configuration, voters, login | Not started. `config/packages/security.yaml` is still the skeleton default with an in-memory provider |
-| Admin screens (EasyAdmin and hand-written) | Not started. EasyAdmin is installed but unconfigured |
+| Admin screens (EasyAdmin and hand-written) | Not started. EasyAdmin is installed but unconfigured, and `/admin` is a placeholder page saying so |
 | Media upload handling | Not started. Feature 001 catalogues files and feature 002 renders a lead image from the recorded filename, but nothing puts bytes on disk — so an article with an image renders without it, by design |
 | Search, feeds, sitemap, social preview metadata | Not started |
 | Caching of any kind | Not started, and deliberately so — the menu costs one query per request |

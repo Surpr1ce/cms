@@ -1,39 +1,67 @@
 security:
-    # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
-    # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
-        users_in_memory: { memory: null }
+        # The skeleton's users_in_memory provider is gone. Accounts live in the
+        # database, and an in-memory provider left behind is an account list
+        # nobody maintains.
+        accounts:
+            entity:
+                class: App\Entity\User
+                property: email
 
     firewalls:
         dev:
-            # Ensure dev tools and static assets are always allowed
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
+
         main:
             lazy: true
-            provider: users_in_memory
+            provider: accounts
 
-            # Activate different ways to authenticate:
-            # https://symfony.com/doc/current/security.html#the-firewall
+            form_login:
+                login_path: login
+                check_path: login
+                enable_csrf: true
+                # Where somebody lands when they signed in without having been
+                # sent anywhere. If they were, Symfony returns them there
+                # instead — FR-007.
+                default_target_path: admin_dashboard
 
-            # https://symfony.com/doc/current/security/impersonating_user.html
-            # switch_user: true
+            logout:
+                path: logout
+                target: home
 
-    # Note: Only the *first* matching rule is applied
     access_control:
-        # - { path: ^/admin, roles: ROLE_ADMIN }
-        # - { path: ^/profile, roles: ROLE_USER }
+        # The public site, explicitly. Listed before the administration rule so
+        # that a future /admin-looking public address cannot be closed by
+        # accident.
+        - { path: ^/login$, roles: PUBLIC_ACCESS }
+
+        # Everything under /admin needs somebody signed in who holds at least one
+        # content role. A list here means *any* of them, which matters because
+        # there is no role hierarchy: an administrator holds ROLE_ADMIN and does
+        # not implicitly hold ROLE_AUTHOR, so naming only the latter would lock
+        # administrators out of their own administration area.
+        #
+        # This is the coarse gate and it is all it should be. What a signed-in
+        # person may do to a particular article is a voter's question, not this
+        # file's.
+        - { path: ^/admin, roles: [ROLE_AUTHOR, ROLE_EDITOR, ROLE_ADMIN] }
+
+# Roles are NOT arranged in a hierarchy here, deliberately. An administrator is
+# granted an editor's permissions by the voters in src/Security/, where the grant
+# is visible at the point of use and provable in a unit test. See
+# docs/adr/0009-voters-instead-of-role-hierarchy.md.
 
 when@test:
     security:
         password_hashers:
-            # Password hashers are resource-intensive by design to ensure security.
-            # In tests, it's safe to reduce their cost to improve performance.
+            # Hashing is expensive by design. In tests that cost buys nothing,
+            # and a suite that signs in repeatedly pays it repeatedly.
             Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
                 algorithm: auto
-                cost: 4 # Lowest possible value for bcrypt
-                time_cost: 3 # Lowest possible value for argon
-                memory_cost: 10 # Lowest possible value for argon
+                cost: 4
+                time_cost: 3
+                memory_cost: 10
