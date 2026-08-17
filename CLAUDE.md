@@ -86,8 +86,10 @@ leaves an artifact in the repository.
   (`publish()`, `archive()`), not `setStatus()`.
 - **Repositories**: return typed collections; never leak `QueryBuilder`.
 - **Templates**: `templates/admin/` and `templates/public/`; shared partials in
-  `templates/components/`; the form theme in `templates/form/theme.html.twig`,
-  registered globally so a new form is styled without anybody remembering.
+  `templates/components/`; messages in `templates/email/`; the form theme in
+  `templates/form/theme.html.twig`, registered globally so a new form is styled
+  without anybody remembering. `templates/bundles/` overrides a bundle's own —
+  today only the error pages.
 - **Migrations**: generated with `doctrine:migrations:diff`, never hand-edited
   after being committed.
 

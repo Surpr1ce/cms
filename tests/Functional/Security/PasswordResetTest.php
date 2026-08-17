@@ -6,13 +6,16 @@ namespace App\Tests\Functional\Security;
 
 use App\Entity\PasswordResetRequest;
 use App\Entity\User;
+use App\Factory\PasswordResetRequestFactory;
 use App\Factory\UserFactory;
 use App\Repository\PasswordResetRequestRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
 use function hash;
 use function is_resource;
 use function preg_match;
+use function str_repeat;
 
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\MailerAssertionsTrait;
@@ -189,13 +192,26 @@ final class PasswordResetTest extends WebTestCase
      */
     public function testALinkStopsWorkingOnceItHasExpired(): void
     {
-        UserFactory::new()->editor()->withPassword()->create(['email' => 'editor@example.com']);
+        $account = UserFactory::new()->editor()->withPassword()->create(['email' => 'editor@example.com']);
 
-        $link = $this->linkFromTheEmailFor('editor@example.com');
+        // Built rather than aged. An earlier version asked for a real link and
+        // then moved its timestamp with an UPDATE, because there is no setter
+        // for the requested time — and there should not be one, since a way to
+        // extend a link's life is the last thing this feature wants in
+        // production code. A factory can pass a time to the constructor, which
+        // is the honest way to arrange a request that is simply old.
+        //
+        // The token is known here and hashed into the row, which is exactly what
+        // PasswordResetService does with a real one.
+        $token = str_repeat('ab', 16);
 
-        $this->ageTheOnlyRequestBy('2 hours');
+        PasswordResetRequestFactory::createOne([
+            'account' => $account,
+            'tokenHash' => hash('sha256', $token),
+            'requestedAt' => new DateTimeImmutable('-2 hours'),
+        ]);
 
-        $this->client->request('GET', $link);
+        $this->client->request('GET', '/reset-password/'.$token);
 
         self::assertResponseStatusCodeSame(404);
     }
@@ -389,20 +405,6 @@ final class PasswordResetTest extends WebTestCase
         self::assertNotEmpty($all, 'No reset request was recorded.');
 
         return $all[0];
-    }
-
-    private function ageTheOnlyRequestBy(string $interval): void
-    {
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-
-        // Through SQL rather than the entity, deliberately: there is no setter
-        // for the requested time, and adding one so a test could move it would
-        // put a way to extend a link's life into the production code.
-        $entityManager->getConnection()->executeStatement(
-            "UPDATE password_reset_request SET requested_at = requested_at - INTERVAL '".$interval."'",
-        );
-        $entityManager->clear();
     }
 
     private function reload(User $account): User

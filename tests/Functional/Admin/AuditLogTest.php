@@ -8,6 +8,7 @@ use App\Entity\AuditAction;
 use App\Entity\AuditEntry;
 use App\Entity\User;
 use App\Factory\ArticleFactory;
+use App\Factory\AuditEntryFactory;
 use App\Factory\MediaFactory;
 use App\Factory\UserFactory;
 use App\Repository\AuditEntryRepository;
@@ -221,8 +222,13 @@ final class AuditLogTest extends WebTestCase
 
         $doomed = UserFactory::new()->editor()->create(['email' => 'departing@example.com']);
 
-        // An entry made by the administrator about the account, and then the
-        // account itself removed.
+        // An entry the departing account made itself, so that what survives is
+        // its own history rather than somebody else's record of removing it.
+        AuditEntryFactory::new()->by($doomed)->create([
+            'action' => AuditAction::ContentPublished,
+            'subject' => 'Something they published',
+        ]);
+
         $this->deleteAccount($doomed->getId());
 
         $crawler = $this->client->request('GET', '/admin/log');
@@ -230,6 +236,10 @@ final class AuditLogTest extends WebTestCase
 
         self::assertStringContainsString('departing@example.com', $text);
         self::assertStringContainsString('deleted the account', $text);
+
+        // And the entry the account made itself, still attributed to it after
+        // the row it pointed at has gone.
+        self::assertStringContainsString('Something they published', $text);
     }
 
     /**
