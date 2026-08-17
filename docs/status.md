@@ -493,6 +493,21 @@ logs an error on every page. Nothing depends on Turbo here and turning it off
 would remove both the error and a good deal of subtlety — recorded rather than
 decided.
 
+**Then both reviews ran over it and found ten more things**, every one in the
+JavaScript: a suggestion list that could not reopen after Escape, arrow keys
+walking a closed list, a Link button applying addresses the sanitiser silently
+stripped, a toolbar that was thirteen tab stops, `/search` with no rate limit
+while the cheaper route had one, and an ADR claiming an enforcement that did not
+exist. All fixed; the list is in
+[`audit.md`](audit.md#the-second-pass-after-feature-018-2026-08-17). The security
+pass found no critical or high issues and verified the editor's "no authority"
+claim with eighteen payloads.
+
+`tools/browser-check.mjs` is what came out of it: twenty assertions driven
+through a real browser, covering every one of those defects. It is not part of
+`composer qa` — it needs a running site and a browser — and
+[`docs/testing.md`](testing.md) says so.
+
 ### After feature 017 — the reviewer and security passes
 
 Not a feature: the two reviews the constitution asks for at phase 4, run for the

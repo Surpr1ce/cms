@@ -63,9 +63,33 @@ vendor/bin/phpunit --filter testItRejectsPublishingWithoutContent
 CI runs the suite against a PostgreSQL service container on every push and pull
 request, so nothing passes by depending on local machine state.
 
+## The browser check
+
+```bash
+symfony serve -d
+node tools/browser-check.mjs             # CHROME_PATH=... to point at a browser
+```
+
+**Nothing in the suite above runs any JavaScript.** Feature 018 added about six
+hundred lines of it — the search suggestions and the visual editor — and every
+fault ever found in that code was found by driving a browser rather than by
+`composer qa`: an editor thrown away on the next Turbo visit, a suggestion list
+that refused to reopen after Escape, arrow keys walking a list nobody could see,
+a Link button applying an address the sanitiser silently stripped at save time.
+The suite was green through all of them.
+
+So this exists, and it is deliberately **not** part of `composer qa`: it needs a
+running site, a loaded database and a browser, which are three things the quality
+gate must not require. Run it by hand before a release and after touching
+anything in `assets/`. It signs in with the development fixture account, so point
+it only at a development installation.
+
 ## Coverage
 
 Coverage is measured and reported, but it is a diagnostic, not a target. A high
 percentage achieved by exercising code without asserting on its behaviour is
 worse than an honest lower number, because it hides the gap. Where coverage is
 thin, the reason is recorded rather than papered over.
+
+**PHP only.** The figure says nothing about `assets/`, which the browser check
+above covers instead — and covers by behaviour rather than by line.

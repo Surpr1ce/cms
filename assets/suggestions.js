@@ -15,6 +15,14 @@
  * No inline styles anywhere. The content security policy set by
  * SecurityHeadersSubscriber allows neither inline script nor inline style, so
  * everything visual is a class.
+ *
+ * **Closing forgets everything.** That is the rule the first version of this file
+ * got wrong, in three related ways a review found: the last query was remembered
+ * across a close, so pressing Escape and then clicking back into the box left it
+ * silent for the text already in it; the suggestions array survived a close, so
+ * the arrow keys still walked an invisible list and Enter navigated to a result
+ * nobody had been shown; and a failed request cached its own failure, so one 429
+ * silenced that query for good. `close()` now resets all of it.
  */
 
 /** Long enough that typing a word is one request, short enough to feel immediate. */
@@ -27,6 +35,12 @@ const LIST_CLASSES =
 const OPTION_CLASSES = 'flex cursor-pointer items-baseline gap-2 px-3 py-2 text-sm text-ink';
 
 const OPTION_ACTIVE_CLASSES = ['bg-ink', 'text-white'];
+
+/**
+ * Every box currently enhanced, so that reverting can stop their timers and
+ * abandon their requests rather than only removing their markup.
+ */
+const live = new Set();
 
 let instances = 0;
 
@@ -80,6 +94,12 @@ class SearchSuggestions {
         this.input.addEventListener('input', () => this.scheduleFetch());
         this.input.addEventListener('keydown', (event) => this.onKeyDown(event));
 
+        // Coming back to a box that already has something in it should offer the
+        // suggestions again rather than waiting for another keystroke. Closing
+        // forgets the last query, so this is a fresh request rather than a
+        // replay.
+        this.input.addEventListener('focus', () => this.scheduleFetch());
+
         /*
          * A click on an option would otherwise blur the input first and close
          * the list out from under the pointer. Refusing the blur on mousedown is
@@ -110,7 +130,6 @@ class SearchSuggestions {
         const query = this.input.value.trim();
 
         if (query.length < this.minimum) {
-            this.lastQuery = null;
             this.render([]);
 
             return;
@@ -124,7 +143,7 @@ class SearchSuggestions {
 
         // The answer to a query nobody is waiting for is of no interest, and a
         // slow one arriving after a fast one would otherwise overwrite it.
-        this.inFlight?.abort();
+        this.abandonRequest();
         this.inFlight = new AbortController();
 
         try {
@@ -136,8 +155,9 @@ class SearchSuggestions {
             if (!response.ok) {
                 // Including 429. A box that quietly stops suggesting is the
                 // right failure — there is nothing a reader can do about it, and
-                // the form still searches.
-                this.render([]);
+                // the form still searches. The query is forgotten so that trying
+                // again once the allowance has recovered actually asks again.
+                this.forget();
 
                 return;
             }
@@ -147,14 +167,12 @@ class SearchSuggestions {
             this.render(Array.isArray(payload.suggestions) ? payload.suggestions : []);
         } catch (error) {
             if (error.name !== 'AbortError') {
-                this.render([]);
+                this.forget();
             }
         }
     }
 
     render(suggestions) {
-        this.suggestions = suggestions;
-        this.activeIndex = -1;
         this.list.replaceChildren();
 
         if (suggestions.length === 0) {
@@ -163,6 +181,9 @@ class SearchSuggestions {
 
             return;
         }
+
+        this.suggestions = suggestions;
+        this.activeIndex = -1;
 
         suggestions.forEach((suggestion, index) => {
             const option = document.createElement('li');
@@ -192,8 +213,17 @@ class SearchSuggestions {
     }
 
     onKeyDown(event) {
+        // `this.list.hidden` rather than the length of the array: after a close
+        // the array is empty too, but reading the thing the user can actually
+        // see is what stops the keys ever acting on an invisible list.
+        const open = !this.list.hidden;
+
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            if (this.suggestions.length === 0) {
+            if (!open) {
+                // Nothing to move through, and possibly something to fetch —
+                // pressing down in a box with text in it should offer the list.
+                this.scheduleFetch();
+
                 return;
             }
 
@@ -214,14 +244,14 @@ class SearchSuggestions {
             return;
         }
 
-        if (event.key === 'Enter' && this.activeIndex >= 0) {
+        if (event.key === 'Enter' && open && this.activeIndex >= 0) {
             event.preventDefault();
             this.go(this.suggestions[this.activeIndex].url);
 
             return;
         }
 
-        if (event.key === 'Escape' && !this.list.hidden) {
+        if (event.key === 'Escape' && open) {
             // Taken before the browser's own handling: in a `type="search"`
             // field Escape empties the box, and somebody closing a dropdown did
             // not ask to lose what they had typed.
@@ -252,8 +282,21 @@ class SearchSuggestions {
         }
     }
 
+    /**
+     * Through Turbo where it is running, so that choosing a suggestion behaves
+     * like clicking the same article in a listing — same cached snapshot, same
+     * `turbo:before-cache` clean-up — rather than being the one full page load
+     * on the site.
+     */
     go(url) {
         this.close();
+
+        if (window.Turbo?.visit) {
+            window.Turbo.visit(url);
+
+            return;
+        }
+
         window.location.assign(url);
     }
 
@@ -262,11 +305,45 @@ class SearchSuggestions {
         this.input.setAttribute('aria-expanded', 'true');
     }
 
+    /**
+     * Closed, and with nothing remembered.
+     *
+     * Both halves matter. Leaving `suggestions` populated let the arrow keys
+     * walk a list nobody could see; leaving `lastQuery` set made the box refuse
+     * to ask again for text it had already asked about, so it never reopened.
+     */
     close() {
         this.list.hidden = true;
         this.input.setAttribute('aria-expanded', 'false');
         this.input.removeAttribute('aria-activedescendant');
+        this.suggestions = [];
         this.activeIndex = -1;
+        this.lastQuery = null;
+    }
+
+    /**
+     * Nothing to show and nothing learned — used when a request failed rather
+     * than when it honestly returned no matches.
+     */
+    forget() {
+        this.render([]);
+        this.lastQuery = null;
+    }
+
+    abandonRequest() {
+        this.inFlight?.abort();
+        this.inFlight = null;
+    }
+
+    /**
+     * Stops everything still in flight. Removing the markup is not enough: a
+     * debounce timer or a request started 180ms before a Turbo visit would
+     * otherwise fire from a page that no longer exists, spending an allowance
+     * the reader's next real search then lacks.
+     */
+    destroy() {
+        window.clearTimeout(this.timer);
+        this.abandonRequest();
     }
 }
 
@@ -280,14 +357,14 @@ export function enhanceSearchBoxes() {
         }
 
         if (form.querySelector('[data-search-suggest-input]')) {
-            new SearchSuggestions(form);
+            live.add(new SearchSuggestions(form));
             form.dataset.searchSuggestReady = 'yes';
         }
     });
 }
 
 /**
- * Puts the markup back the way the server sent it.
+ * Puts the markup back the way the server sent it, and stops what was running.
  *
  * Turbo stores a snapshot of the page before leaving it and restores that
  * snapshot on the way back. Without this, the snapshot would contain a list this
@@ -295,6 +372,9 @@ export function enhanceSearchBoxes() {
  * back as a dropdown that never opens and an `aria-controls` pointing at it.
  */
 export function revertSearchBoxes() {
+    live.forEach((instance) => instance.destroy());
+    live.clear();
+
     document.querySelectorAll('[data-search-suggest-chrome]').forEach((element) => element.remove());
 
     document.querySelectorAll('form[data-search-suggest]').forEach((form) => {

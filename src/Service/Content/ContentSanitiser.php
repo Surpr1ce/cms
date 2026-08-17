@@ -75,6 +75,20 @@ final readonly class ContentSanitiser
             ->allowLinkSchemes(['http', 'https', 'mailto'])
             ->allowMediaSchemes(['http', 'https'])
 
+            // And an address with no scheme at all, so that linking to another
+            // page on this site works. Without it `<a href="/about-us">` lost its
+            // href and arrived as plain text — which nobody noticed while the
+            // body was a text area, and which feature 018's Link button walks
+            // straight into.
+            //
+            // Worth knowing what this also permits: `//evil.example/x` has no
+            // scheme either, so a protocol-relative address off the site is now
+            // kept. That is not a new power — anyone who can write body markup
+            // could already write `https://evil.example` — and only editorial
+            // roles can write here at all. It is recorded because "relative"
+            // sounds like "internal" and one of those is not true.
+            ->allowRelativeLinks()
+
             // Dropped entirely, contents and all, rather than unwrapped. An
             // unwrapped <script> would leave its source code as visible text in
             // the middle of the article.

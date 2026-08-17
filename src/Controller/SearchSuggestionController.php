@@ -37,11 +37,15 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * `SearchQuery` before the database sees them, and a query too short to be worth
  * running answers an empty list without asking anything.
  *
- * **It is limited.** This is the one route on the site designed to be asked
- * repeatedly, which makes it the cheapest to abuse; every request is a full-text
- * match over two tables. A client past its allowance is told so with a 429 rather
- * than an empty list, because a suggestion box that silently goes quiet looks
- * broken.
+ * **It is limited**, from the same allowance as `/search` itself. This route is
+ * designed to be asked repeatedly, which makes it the obvious one to bound — but
+ * an audit pointed out that the search page runs the identical query for twenty
+ * -one rows rather than six, so limiting only this one was a ceiling anybody
+ * could step around by asking the other route instead. One bucket, both routes.
+ *
+ * A client past its allowance is told so with a 429 rather than an empty list,
+ * because "no matches" and "stop asking" are different answers and the second
+ * one should not be able to masquerade as the first.
  */
 final class SearchSuggestionController extends AbstractController
 {
@@ -53,14 +57,14 @@ final class SearchSuggestionController extends AbstractController
 
     public function __construct(
         private readonly SiteSearch $search,
-        private readonly RateLimiterFactoryInterface $searchSuggestionsLimiter,
+        private readonly RateLimiterFactoryInterface $searchLimiter,
     ) {
     }
 
     #[Route('/search/suggestions', name: 'search_suggestions', methods: ['GET'])]
     public function __invoke(Request $request): JsonResponse
     {
-        if (!$this->searchSuggestionsLimiter->create($request->getClientIp())->consume()->isAccepted()) {
+        if (!$this->searchLimiter->create($request->getClientIp())->consume()->isAccepted()) {
             return new JsonResponse(
                 ['suggestions' => []],
                 Response::HTTP_TOO_MANY_REQUESTS,

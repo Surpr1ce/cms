@@ -121,6 +121,41 @@ templates are sound because everything reaching them passed the sanitiser and th
 CSP carries no `unsafe-inline`; and neither pass found a way to reach unpublished
 content through any delivery mechanism, the new "read next" suggestions included.
 
+## The second pass, after feature 018 (2026-08-17)
+
+Both reviews run again over the new feature. **No critical or high security
+findings**, and the claim feature 018 rests on — that the visual editor carries no
+authority — was verified rather than accepted: the auditor put eighteen payloads
+through the write path, including `javascript:` in four encodings, `<svg onload>`
+and the `<math><mtext><table><mglyph><style>` mXSS shape, and none survived.
+
+What the conventions review found was worse than what the security review found,
+and all of it was in the JavaScript:
+
+| Finding | Outcome |
+| --- | --- |
+| **The suggestion list could never reopen for the same text.** Closing left the last query cached, so Escape — or clicking away and back — left the box silent until something genuinely different was typed | Fixed. `close()` forgets everything |
+| **The arrow keys walked a closed list.** `close()` left the array populated, so after Escape, down-then-Enter navigated to a result the reader had never been shown, and a screen reader was pointed inside a listbox that was not exposed | Fixed |
+| **One failed request silenced that query for good**, because the failure was cached like a result | Fixed |
+| **The Link button could apply an address the sanitiser refuses.** `javascript:`, `ftp:`, and — the common case — a plain `/about-us`, which was stripped at save time because the allow-list named three schemes and a scheme-less address matched none. Formatting that vanishes on saving is precisely what this editor was built not to do | Fixed twice: the editor refuses a scheme that will not be kept and says so, and the sanitiser now allows relative links so that internal linking works at all |
+| **The toolbar was thirteen tab stops** where `role="toolbar"` promises one | Fixed: roving tabindex, arrows and Home/End |
+| **Timers and requests survived the Turbo revert**, so a visit made within 180ms of a keystroke fired a request from a page that no longer existed | Fixed |
+| **ADR 14 claimed a test enforced that the toolbar cannot outgrow the allow-list.** It did not — the test was a hand-written list with no connection to the toolbar | Fixed: `ToolbarMatchesTheAllowListTest` reads `assets/editor.js` and pins both the block elements and the set of commands. The ADR now describes what is actually checked |
+| **Three tests asserted less than their names claimed** — an absence checked by a hardcoded id, two refusals asserted by a redirect without ever reading the message, and a "did not change" that was already true before the request | Fixed |
+| **`/search` had no rate limit** while `/search/suggestions` did, and runs the same query for twenty-one rows rather than six — a ceiling anybody could step around by asking the other route | Fixed: one allowance, both routes |
+| Nothing runs the ~600 lines of JavaScript | **Answered rather than fixed.** `tools/browser-check.mjs` makes the browser check repeatable — twenty assertions covering both features, including every defect above — and `docs/testing.md` says plainly that `composer qa` does not run it |
+
+Two things recorded rather than repaired, both argued in the documents that own
+them: the editor assigns stored markup to `innerHTML`, which is a widened blast
+radius behind two independent controls rather than a hole ([ADR 14](adr/0014-a-visual-editor-that-carries-no-authority.md)),
+and the rate limiter keys on the client address, which is only as accurate as
+`trusted_proxies` — now said at the point of configuration rather than only under
+the trusted-hosts heading in `setup.md`.
+
+**The lesson is the same one this project keeps learning.** A green suite,
+level-max analysis and 95% line coverage had nothing to say about ten defects in
+the code a reader actually touches, because none of them runs a browser.
+
 ## What the audit could not check
 
 **Nothing here checks what the site looks like.** Three consecutive features and

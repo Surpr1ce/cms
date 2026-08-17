@@ -13,15 +13,26 @@ framework:
             limit: 5
             interval: '1 hour'
 
-        # Suggestions fire while somebody types, so this is the one route on the
-        # site that is *meant* to be asked repeatedly — which makes it the
-        # cheapest one to abuse and the one that most needs a ceiling. Every
-        # request is a PostgreSQL full-text match over two tables.
+        # Searching, by either route.
         #
-        # Sixty a minute is roughly one key every second held down for a minute,
-        # which nobody does; the browser debounces anyway, so a person searching
-        # normally spends a handful. Somebody scripting it finds a wall.
-        search_suggestions:
+        # One bucket for `/search` and `/search/suggestions` together, because
+        # they are the same work: a PostgreSQL full-text match over the article
+        # and page tables. An audit found the first version limiting only the
+        # suggestions — on the reasoning that typing asks repeatedly — while
+        # `/search` was unlimited and *more* expensive per request, twenty-one
+        # rows against six. A ceiling that is bypassed by walking one route to
+        # the left is not a ceiling.
+        #
+        # Sixty a minute is far past a person: the browser debounces, so typing a
+        # word costs one or two, and submitting costs one. Somebody scripting it
+        # finds a wall.
+        #
+        # **The key is the client address**, so this control is only as accurate
+        # as `framework.trusted_proxies`. Behind a proxy with that unset, every
+        # visitor arrives as the proxy and shares one allowance; set too widely,
+        # `X-Forwarded-For` becomes attacker-controlled and there is no limit at
+        # all. See docs/setup.md.
+        search:
             policy: 'sliding_window'
             limit: 60
             interval: '1 minute'
@@ -44,7 +55,7 @@ when@test:
 
             # Low enough that a test can reach it without sixty requests, which
             # would make the suite slower to prove the same thing.
-            search_suggestions:
+            search:
                 policy: 'sliding_window'
                 limit: 5
                 interval: '1 minute'

@@ -66,7 +66,13 @@ final class MarkupEditorTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/admin/articles/new');
 
-        self::assertCount(0, $crawler->filter('#article_excerpt[data-markup-editor]'));
+        // The field is found first and then asked about. Asserting the absence of
+        // a selector alone would also pass if the field were renamed or gone,
+        // which is how a rule stops being checked without anybody noticing.
+        $summary = $crawler->filter('textarea[name="article[excerpt]"]');
+
+        self::assertCount(1, $summary);
+        self::assertNull($summary->attr('data-markup-editor'));
     }
 
     public function testThePageBodyAsksForItToo(): void

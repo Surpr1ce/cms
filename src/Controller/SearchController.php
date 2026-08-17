@@ -10,6 +10,7 @@ use App\Service\Pagination\Paginator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -29,6 +30,7 @@ final class SearchController extends AbstractController
     public function __construct(
         private readonly SiteSearch $search,
         private readonly Paginator $paginator,
+        private readonly RateLimiterFactoryInterface $searchLimiter,
     ) {
     }
 
@@ -36,6 +38,26 @@ final class SearchController extends AbstractController
     public function __invoke(Request $request): Response
     {
         $query = SearchQuery::from($request->query->getString('q'));
+
+        // The same allowance the suggestion endpoint spends from. This route is
+        // the more expensive of the two — twenty-one rows against six — and an
+        // audit found it with no ceiling at all while the cheaper one had one,
+        // which made the limit a formality anybody could step around.
+        //
+        // Consumed after the query is parsed, so that a request too short to be
+        // worth running costs nothing: `isWorthRunning()` stops it before the
+        // database is touched, and refusing it here would spend an allowance on
+        // work that never happened.
+        if ($query->isWorthRunning()
+            && !$this->searchLimiter->create($request->getClientIp())->consume()->isAccepted()
+        ) {
+            return $this->render('public/search.html.twig', [
+                'query' => $query,
+                'page' => $this->paginator->paginate([], 1),
+                'tooMany' => true,
+            ], new Response(status: Response::HTTP_TOO_MANY_REQUESTS));
+        }
+
         $number = Paginator::pageNumberFrom($request->query->get('page'));
 
         $found = $this->search->search(

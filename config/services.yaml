@@ -64,11 +64,6 @@ services:
             # header could otherwise be made to do.
             $siteUri: '%env(DEFAULT_URI)%'
 
-    # Named for the same reason: a limiter is a service per configured name
-    # rather than a class, so there is nothing for autowiring to find.
-    App\Controller\SearchSuggestionController:
-        arguments:
-            $searchSuggestionsLimiter: '@limiter.search_suggestions'
 
 when@test:
     parameters:

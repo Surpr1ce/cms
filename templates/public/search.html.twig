@@ -45,7 +45,18 @@
         }, with_context = false) }}
     </div>
 
-    {% if query.isEmpty %}
+    {% if tooMany|default(false) %}
+        {#
+           Asked too often. A sentence rather than an error page, because the
+           reader has done nothing wrong and the box above still works in a
+           minute — and because a search page that answers with a stack trace
+           tells whoever was scripting it rather more than this does.
+        #}
+        <p class="mt-8 text-muted">
+            That is a lot of searching. Give it a minute and try again.
+        </p>
+
+    {% elseif query.isEmpty %}
         {# An invitation, not a result. Reading "nothing matched" when you have
            not asked anything reads as broken software. #}
         <p class="mt-8 text-muted">Type a word or a phrase to search the site.</p>

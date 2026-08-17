@@ -55,11 +55,6 @@ final class PlaceholderImageTest extends TestCase
     }
 
     /**
-     * Large enough that every derived size is a genuine reduction. If this ever
-     * drops below the largest size the site asks for, thumbnails start being
-     * enlargements.
-     */
-    /**
      * @return iterable<string, array{string}>
      */
     public static function mimeTypeProvider(): iterable
@@ -69,6 +64,11 @@ final class PlaceholderImageTest extends TestCase
         }
     }
 
+    /**
+     * Large enough that every derived size is a genuine reduction. If this ever
+     * drops below the largest size the site asks for, thumbnails start being
+     * enlargements — which is the state feature 012 found and fixed.
+     */
     #[DataProvider('mimeTypeProvider')]
     public function testItIsBigEnoughToBeReducedRatherThanEnlarged(string $mimeType): void
     {

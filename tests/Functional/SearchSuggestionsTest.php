@@ -123,9 +123,9 @@ final class SearchSuggestionsTest extends WebTestCase
     }
 
     /**
-     * FR: the endpoint is unauthenticated and meant to be asked repeatedly,
-     * which makes it the cheapest route on the site to abuse — every request is
-     * a full-text match over two tables.
+     * The endpoint is unauthenticated and meant to be asked repeatedly, so it is
+     * bounded — from the same allowance `/search` spends from, which is the half
+     * an audit found missing.
      *
      * The limit is deliberately lower in the test environment, so that reaching
      * it does not cost the suite sixty requests to prove the same thing.
@@ -148,6 +148,42 @@ final class SearchSuggestionsTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
     }
 
+    /**
+     * The other half of the same allowance. `/search` runs the identical query
+     * for twenty-one rows rather than six, so a ceiling that stopped at the
+     * suggestion endpoint was one anybody could step around by asking the search
+     * page instead — which is what the first version of this feature shipped.
+     */
+    public function testTheSearchPageSharesTheSameAllowance(): void
+    {
+        $this->client->disableReboot();
+
+        for ($attempt = 1; $attempt <= 5; ++$attempt) {
+            $this->client->request('GET', '/search/suggestions?q=hippopotamus');
+            self::assertResponseIsSuccessful();
+        }
+
+        $crawler = $this->client->request('GET', '/search?q=hippopotamus');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
+        self::assertStringContainsString('a lot of searching', $crawler->filter('main')->text());
+    }
+
+    /**
+     * And a query too short to be worth running costs nothing, so somebody
+     * typing one character repeatedly cannot exhaust their own allowance before
+     * they have searched for anything.
+     */
+    public function testAQueryTooShortToRunSpendsNothing(): void
+    {
+        $this->client->disableReboot();
+
+        for ($attempt = 1; $attempt <= 8; ++$attempt) {
+            $this->client->request('GET', '/search?q=a');
+            self::assertResponseIsSuccessful();
+        }
+    }
+
     public function testItAnswersJson(): void
     {
         $this->client->request('GET', '/search/suggestions?q=anything');
@@ -160,11 +196,13 @@ final class SearchSuggestionsTest extends WebTestCase
      * A title is somebody's words, and this is the one place on the site where
      * they are written into a page by script rather than by Twig.
      *
-     * Two halves guard it. The browser uses `textContent`, which cannot produce
-     * an element. The server sends the title with its angle brackets escaped, so
-     * a response that ended up somewhere it should not — a console, a log, a
-     * page that concatenated it — still carries no tag. This asserts the half
-     * the server is responsible for.
+     * What this pins is a framework default the feature relies on rather than
+     * anything `SearchSuggestionController` does: `JsonResponse` applies
+     * `JSON_HEX_TAG`, so angle brackets leave as `<`. That is worth a test
+     * precisely *because* it is a default — the day somebody passes custom
+     * encoding flags to make the output prettier, this fails, and the browser's
+     * `textContent` becomes the only thing left standing between a title and a
+     * page.
      */
     public function testATitleIsCarriedWithNoMarkupInIt(): void
     {

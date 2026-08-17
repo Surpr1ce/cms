@@ -37,6 +37,47 @@ const BUTTON_CLASSES =
 const SEPARATOR_CLASSES = 'mx-1 h-5 w-px bg-rule';
 
 /**
+ * The address the sanitiser will keep, or null when there is none.
+ *
+ * Deliberately narrow, and deliberately the same three schemes
+ * ContentSanitiser names plus the scheme-less form it now allows. It is not a
+ * second copy of the allow-list — that governs *elements*, and this governs one
+ * attribute of one of them — but the two do have to agree about link schemes,
+ * which is why both say so in a comment naming the other.
+ */
+function normaliseAddress(typed) {
+    if ('' === typed) {
+        return null;
+    }
+
+    // A path on this site, or an anchor within the page. Kept as typed: the
+    // sanitiser allows an address with no scheme precisely so these work.
+    if (typed.startsWith('/') || typed.startsWith('#')) {
+        // Not `//host`, which looks internal and is not.
+        return typed.startsWith('//') ? null : typed;
+    }
+
+    if (/^(https?:|mailto:)/i.test(typed)) {
+        return typed;
+    }
+
+    // Something with a scheme this application will not keep — javascript:,
+    // data:, ftp: and anything else. Refused here so it is refused visibly.
+    if (/^[a-z][a-z0-9+.-]*:/i.test(typed)) {
+        return null;
+    }
+
+    // An email address typed on its own.
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typed)) {
+        return `mailto:${typed}`;
+    }
+
+    // A bare domain. https rather than http, because a site that only answers
+    // on http will redirect and a site that only answers on https will not.
+    return `https://${typed}`;
+}
+
+/**
  * What the toolbar offers.
  *
  * `block` commands ask for a block name; `inline` ones toggle. `state` is the
@@ -136,6 +177,8 @@ class MarkupEditor {
         this.toggle.addEventListener('click', () => this.toggleView());
         this.toolbar.append(this.toggle);
 
+        this.makeToolbarOneTabStop();
+
         this.surface = document.createElement('div');
         this.surface.className = SURFACE_CLASSES;
         this.surface.contentEditable = 'true';
@@ -151,6 +194,48 @@ class MarkupEditor {
         // goes wrong.
         this.textarea.before(this.toolbar, this.surface);
         this.textarea.classList.add('hidden', 'rounded-t-none');
+    }
+
+    /**
+     * One tab stop for the whole toolbar, with the arrow keys moving inside it.
+     *
+     * This is what `role="toolbar"` promises and the first version did not keep:
+     * every button was a tab stop, so a keyboard user pressed Tab thirteen times
+     * to get from the toolbar into the field they came to write in, and the
+     * arrow keys — which assistive technology announces as the way through a
+     * toolbar — did nothing.
+     */
+    makeToolbarOneTabStop() {
+        this.focusable = [...this.buttons.map(({ button }) => button), this.toggle];
+
+        this.focusable.forEach((button, index) => {
+            button.tabIndex = 0 === index ? 0 : -1;
+        });
+
+        this.toolbar.addEventListener('keydown', (event) => {
+            const step = { ArrowRight: 1, ArrowLeft: -1, Home: 'first', End: 'last' }[event.key];
+
+            if (undefined === step) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const from = this.focusable.indexOf(document.activeElement);
+            const count = this.focusable.length;
+
+            const to = 'first' === step
+                ? 0
+                : 'last' === step
+                    ? count - 1
+                    : (from + step + count) % count;
+
+            this.focusable.forEach((button, index) => {
+                button.tabIndex = index === to ? 0 : -1;
+            });
+
+            this.focusable[to].focus();
+        });
     }
 
     /**
@@ -206,17 +291,48 @@ class MarkupEditor {
         this.surface.focus();
 
         if (entry.command === 'link') {
-            const href = window.prompt('Address to link to');
-
-            if (href) {
-                document.execCommand('createLink', false, href);
-            }
+            this.link();
         } else {
             document.execCommand(entry.command, false, entry.value ?? null);
         }
 
         this.syncToTextarea();
         this.refreshButtons();
+    }
+
+    /**
+     * A link, with the address checked before it is applied.
+     *
+     * The first version handed whatever was typed straight to `createLink`. The
+     * sanitiser keeps only http, https, mailto and addresses with no scheme at
+     * all — so `javascript:…`, `ftp://…` and the like arrived on screen as
+     * working links and were silently stripped at the moment of saving. That is
+     * exactly the "formatting that vanishes on save" this editor was designed
+     * not to do, and a review found it in the one button that could do it.
+     *
+     * A bare `example.com` is the common case and is not refused: it is given
+     * `https://`, because somebody typing a domain means a web address and
+     * leaving it alone would make it a relative link to a page of that name.
+     */
+    link() {
+        const typed = window.prompt('Address to link to');
+
+        if (!typed) {
+            return;
+        }
+
+        const href = normaliseAddress(typed.trim());
+
+        if (href === null) {
+            window.alert(
+                'That address cannot be linked to. Use a web address, an email address, '
+                + 'or a path on this site such as /about-us.',
+            );
+
+            return;
+        }
+
+        document.execCommand('createLink', false, href);
     }
 
     refreshButtons() {

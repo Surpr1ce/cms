@@ -113,7 +113,17 @@ final class PageAdministrationTest extends WebTestCase
         $this->transition($page, 'Publish');
 
         self::assertSame(ContentStatus::Draft, $this->reload($page)->getStatus());
+
+        // The message is the half a person actually sees, so it is followed and
+        // read rather than inferred from a redirect. Without this the sentence
+        // could be deleted and the test would stay green.
         self::assertResponseRedirects();
+        $crawler = $this->client->followRedirect();
+
+        self::assertMatchesRegularExpression(
+            '/body|content|empty/i',
+            $crawler->filter('[role="alert"]')->text(),
+        );
     }
 
     /**
@@ -125,13 +135,41 @@ final class PageAdministrationTest extends WebTestCase
     {
         $this->signIn([User::ROLE_EDITOR]);
 
-        $parent = PageFactory::createOne(['title' => 'About us', 'slug' => 'about-us']);
+        // The page under test already has a parent of its own, so "its parent did
+        // not change" is a claim that can fail. With a top-level page the
+        // assertion was already true before the request, and a screen that
+        // silently discarded every parent would have passed it.
+        $grandparent = PageFactory::createOne(['title' => 'Company', 'slug' => 'company']);
+        $parent = PageFactory::createOne(['title' => 'About us', 'slug' => 'about-us', 'parent' => $grandparent]);
         $child = PageFactory::createOne(['title' => 'Our team', 'slug' => 'our-team', 'parent' => $parent]);
 
         $this->submitEdit($parent, ['page[parent]' => (string) $child->getId()]);
 
         self::assertResponseIsSuccessful();
-        self::assertNull($this->reload($parent)->getParent());
+
+        $reloaded = $this->reload($parent);
+
+        self::assertNotNull($reloaded->getParent());
+        self::assertSame('Company', $reloaded->getParent()->getTitle());
+    }
+
+    /**
+     * And the same screen still accepts a parent that is not a descendant, so
+     * the refusal above is a rule rather than the field being broken.
+     */
+    public function testAPageCanStillBeGivenAnOrdinaryParent(): void
+    {
+        $this->signIn([User::ROLE_EDITOR]);
+
+        $parent = PageFactory::createOne(['title' => 'About us', 'slug' => 'about-us']);
+        $orphan = PageFactory::createOne(['title' => 'Our team', 'slug' => 'our-team']);
+
+        $this->submitEdit($orphan, ['page[parent]' => (string) $parent->getId()]);
+
+        $reloaded = $this->reload($orphan);
+
+        self::assertNotNull($reloaded->getParent());
+        self::assertSame('About us', $reloaded->getParent()->getTitle());
     }
 
     /**
@@ -150,6 +188,15 @@ final class PageAdministrationTest extends WebTestCase
 
         self::assertResponseRedirects();
         self::assertCount(2, $this->pages()->findAll());
+
+        // The count proves nothing was destroyed; this proves somebody was told
+        // why, which is the part FR-017 is actually about. The refusal names the
+        // page and says how many are in the way, so a database constraint's
+        // answer — a foreign-key name — would not pass this.
+        $message = $this->client->followRedirect()->filter('[role="alert"]')->text();
+
+        self::assertStringContainsString('About us', $message);
+        self::assertStringContainsString('1 child', $message);
     }
 
     public function testAPageWithNothingHangingOffItIsDeleted(): void

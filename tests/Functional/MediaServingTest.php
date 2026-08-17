@@ -231,6 +231,90 @@ final class MediaServingTest extends WebTestCase
     }
 
     /**
+     * Submitting the form without choosing anything. A browser sends the field
+     * empty rather than omitting it, so this is one wrong click away and used to
+     * be uncovered.
+     */
+    public function testAnUploadWithNoFileChosenSaysSoAndStoresNothing(): void
+    {
+        $this->signIn([User::ROLE_EDITOR]);
+
+        $crawler = $this->client->request('GET', '/admin/media');
+        $token = (string) $crawler->filter('form[action$="/admin/media/upload"] input[name="_token"]')->attr('value');
+
+        $this->client->request('POST', '/admin/media/upload', ['altText' => 'A description', '_token' => $token]);
+
+        self::assertResponseRedirects('/admin/media');
+        self::assertCount(0, $this->repository()->findAll());
+    }
+
+    public function testADescriptionCanBeChangedAfterwards(): void
+    {
+        $media = $this->uploadAsEditor();
+
+        $this->describe($media, 'A better description');
+
+        self::assertResponseRedirects('/admin/media');
+        self::assertSame('A better description', $this->reload($media)->getAltText());
+    }
+
+    /**
+     * FR-002 again, from the other direction: a description can be improved but
+     * not removed. A file with no description cannot be used as a lead image, so
+     * emptying one would silently take it out of circulation.
+     */
+    public function testADescriptionCannotBeEmptied(): void
+    {
+        $media = $this->uploadAsEditor();
+
+        $this->describe($media, '   ');
+
+        self::assertResponseRedirects('/admin/media');
+        self::assertSame('A description', $this->reload($media)->getAltText());
+    }
+
+    /**
+     * A record whose bytes are not really an image.
+     *
+     * The type says it can be resized and the file says otherwise, which is what
+     * a truncated or corrupted upload looks like. The route answers 404 rather
+     * than serving the original at full size — a request for four hundred pixels
+     * answered with four thousand is the problem this route exists to solve.
+     */
+    public function testAFileThatCannotBeResizedIsNotFoundAtASize(): void
+    {
+        $media = $this->uploadAsEditor();
+
+        file_put_contents($this->storage()->pathFor($media), 'not really a picture');
+
+        $this->client->request('GET', '/media/large/'.$media->getFilename());
+
+        self::assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+    }
+
+    private function describe(Media $media, string $altText): void
+    {
+        $crawler = $this->client->request('GET', '/admin/media');
+        $token = (string) $crawler
+            ->filter('form[action$="/'.$media->getId().'/describe"] input[name="_token"]')
+            ->attr('value');
+
+        $this->client->request(
+            'POST',
+            '/admin/media/'.$media->getId().'/describe',
+            ['altText' => $altText, '_token' => $token],
+        );
+    }
+
+    private function reload(Media $media): Media
+    {
+        $reloaded = $this->repository()->find($media->getId());
+        self::assertInstanceOf(Media::class, $reloaded);
+
+        return $reloaded;
+    }
+
+    /**
      * @param list<string> $roles
      */
     private function signIn(array $roles): void

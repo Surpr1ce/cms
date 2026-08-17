@@ -346,4 +346,38 @@ final class ContentSanitiserTest extends TestCase
     ): void {
         self::assertSame($stored, new ContentSanitiser()->sanitiseMarkup($written));
     }
+
+    /**
+     * A link to another page on this site keeps its address.
+     *
+     * It did not until feature 018. `allowLinkSchemes` named three schemes and
+     * an address with no scheme matched none of them, so `<a href="/about-us">`
+     * arrived as plain text — silently, at the point of saving. Nobody met it
+     * while the body was a text area of hand-written markup; the Link button
+     * walks into it on the first internal link anybody makes.
+     */
+    public function testALinkToAnotherPageOnThisSiteKeepsItsAddress(): void
+    {
+        $written = '<p>See <a href="/about-us">about us</a>.</p>';
+
+        self::assertSame($written, new ContentSanitiser()->sanitiseMarkup($written));
+    }
+
+    /**
+     * And the scheme rules still hold, which is the half that matters. A
+     * relative address is allowed because it has no scheme; an address whose
+     * scheme executes is refused whatever it is dressed up as.
+     */
+    public function testAnAddressThatExecutesIsStillRefused(): void
+    {
+        $sanitiser = new ContentSanitiser();
+
+        foreach ([
+            '<a href="javascript:alert(1)">x</a>',
+            '<a href="JaVaScRiPt:alert(1)">x</a>',
+            '<a href="data:text/html,<script>alert(1)</script>">x</a>',
+        ] as $written) {
+            self::assertSame('<a>x</a>', $sanitiser->sanitiseMarkup($written), $written.' survived.');
+        }
+    }
 }
