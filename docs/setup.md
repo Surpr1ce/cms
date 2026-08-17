@@ -55,13 +55,18 @@ suite actually runs against `app_test` while the URL names `app`.
 
 ```bash
 docker compose up -d database
-docker compose port database 5432     # prints the ephemeral host port
 ```
 
-`compose.override.yaml` publishes the container on a host port the daemon picks,
-so it never collides with a native instance on 5432 — and `DATABASE_URL` has to
-be updated after every `up`. Pin a fixed port in `compose.override.yaml` if you
-work this way regularly; that is a deliberate change, not a default.
+**The container's PostgreSQL answers on `localhost:5433`.** That port is pinned in
+`compose.override.yaml` rather than left as the recipe's ephemeral one.
+[ADR 7](adr/0007-docker-is-available-after-all.md) said pinning it should be a
+deliberate change made when there was a reason, and the reason arrived: a database
+client needs an address that is the same tomorrow, and `docker compose port
+database 5432` after every `up` is not one.
+
+5433 rather than 5432 because the native instance holds that port. Both are
+reachable at once, which is deliberate — they are two different databases with the
+same tables, and it has to stay obvious which one a query is answering.
 
 The compose password is the recipe default `!ChangeMe!` unless `POSTGRES_PASSWORD`
 is set.
@@ -99,6 +104,28 @@ own volume, which is why its content and the content you see through
 
 Verified the same way the native path is: `node tools/browser-check.mjs
 http://localhost:8080` passes all twenty-one checks against the container.
+
+## Looking at the database
+
+Two clients are set up, and you need neither — `psql` inside the container works
+too (`docker compose exec database psql -U app -d app`).
+
+| Connection | Host | Port | Database | User | Password |
+| --- | --- | --- | --- | --- | --- |
+| Native — what `composer serve` shows | `127.0.0.1` | 5432 | `app` | `app` | `app` |
+| Container — what `docker compose` shows | `127.0.0.1` | 5433 | `app` | `app` | `!ChangeMe!` |
+| Test — rebuilt and rolled back by the suite | `127.0.0.1` | 5432 | `app_test` | `app` | `app` |
+
+**DBeaver** (installed with `winget install DBeaver.DBeaver.Community`) picks all
+three up from its workspace; the passwords are not stored, so it asks once.
+
+**PhpStorm** has the same three in `.idea/dataSources.xml` — open the Database tool
+window, and it offers to download the PostgreSQL driver the first time you connect.
+
+The two `app` databases hold the same tables and different content: one is what you
+have been editing natively, the other is what the container seeded itself with.
+Reading the wrong one is the easiest mistake here, which is why the connections are
+named after the way you started the site rather than after the port.
 
 ## Bring the application up
 

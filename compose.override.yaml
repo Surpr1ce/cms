@@ -3,7 +3,18 @@ services:
 ###> doctrine/doctrine-bundle ###
   database:
     ports:
-      - "5432"
+      # 5433 on the host, not the recipe's ephemeral port.
+      #
+      # ADR 7 said pinning this was "a change to a Flex recipe file that should be
+      # made deliberately when there is a reason". The reason arrived: a database
+      # client needs an address that is the same tomorrow, and `docker compose port
+      # database 5432` after every `up` is not one.
+      #
+      # 5433 rather than 5432 because the native PostgreSQL this project develops
+      # against holds that port. Both are reachable at once, which is the point —
+      # the two are different databases and it must stay obvious which one a query
+      # is answering.
+      - "5433:5432"
 ###< doctrine/doctrine-bundle ###
 
 ###> symfony/mailer ###
