@@ -25,7 +25,14 @@
                         {{ site_name }}
                     </a>
 
-                    <div class="w-full max-w-xs">
+                    {#
+                       `w-full` only until there is room for it. In a wrapping
+                       flex row `w-full` is a basis of 100%, so an unconditional
+                       one puts the search on a line of its own at every width —
+                       it was doing exactly that, stranded under the site name
+                       with two thirds of the row empty beside it.
+                    #}
+                    <div class="w-full sm:w-72">
                         {{ include(
                             'components/_search_form.html.twig',
                             { query: app.request.query.get('q'), autofocus: false },
@@ -66,16 +73,33 @@
             {% block main %}{% endblock %}
         </main>
 
-        <footer class="mt-16 border-t border-rule">
-            <div class="mx-auto max-w-3xl px-5 py-10">
+        {#
+           No top margin. `main` is `grow` inside a `min-h-full` column, which is
+           already what holds the footer at the bottom — a margin on top of that
+           makes the page taller than the viewport, so a short page scrolls to
+           reveal a band of nothing above the footer. The room comes from the
+           footer's own padding instead, which does not add to the height of a
+           page that is already tall enough.
+        #}
+        <footer class="border-t border-rule">
+            <div class="mx-auto max-w-3xl px-5 py-12">
                 <div class="grid gap-8 sm:grid-cols-3">
                     <div>
-                        <p class="font-semibold text-ink">{{ site_name }}</p>
-                        <p class="mt-1 text-sm text-muted">
-                            <a href="{{ path('feed') }}" class="text-muted no-underline hover:text-ink hover:underline">
-                                Subscribe by feed
-                            </a>
-                        </p>
+                        <p class="text-sm font-semibold text-ink">{{ site_name }}</p>
+                        <ul class="mt-2 space-y-1 text-sm">
+                            <li>
+                                <a href="{{ path('feed') }}"
+                                   class="text-muted no-underline hover:text-ink hover:underline">
+                                    Subscribe by feed
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ path('search') }}"
+                                   class="text-muted no-underline hover:text-ink hover:underline">
+                                    Search
+                                </a>
+                            </li>
+                        </ul>
                     </div>
 
                     {% if sections is not empty %}
