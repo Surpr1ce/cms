@@ -199,6 +199,34 @@ dressed as a feature: the result belongs to nobody and neither editor is told
 what happened to their sentences. A future feature may show a comparison; this
 one refuses and says why.
 
+### Feature 010 — discoverability
+
+Branch `010-discoverability`. Nine features had built a CMS that works and that
+nobody can find.
+
+| Area | State |
+| --- | --- |
+| Sitemap | `/sitemap.xml` — every published article, page, section and in-use label, absolute addresses, a change date per entry |
+| Robots | `/robots.txt`, generated rather than static, naming the sitemap through the router so it cannot drift |
+| Feed | `/feed.xml` — Atom, the twenty most recent published articles, advertised from every page of the site |
+| Preview metadata | Open Graph title, description, address, type and image; a Twitter card; and a canonical address, on **every** public page |
+| How that is guaranteed | Built in `base.html.twig` from the title and description a template already declares, using Twig's `block()`. A template gains a working preview by doing nothing and cannot acquire a broken one by forgetting |
+| Descriptions | One shared rule in `src/Service/Seo/PlainText.php` — markup gone, whitespace collapsed, cut on a word boundary. Used by the tags and by the feed summaries alike |
+| Canonical addresses | Drop the query string, except the page number: page two of a listing is genuinely a different page, and calling it canonical to page one asks a search engine to forget everything past the first twenty articles |
+| Whole project | **784 tests, 2122 assertions, passing** |
+
+**Nothing here writes a query.** Every list comes from a repository method the
+public controllers already use — the ones that structurally cannot return
+unpublished content — because a sitemap assembled from `findAll()` and filtered
+afterwards is how a draft ends up announced to a search engine.
+
+**The two assertions worth knowing about.** `SitemapTest` requests *every address
+the sitemap contains*, because a sitemap listing a 404 teaches a crawler to
+distrust the whole document and a comparison of two lists would never find it.
+And `FeedTest` publishes an article whose body is a catalogue of things that
+break XML — an unclosed tag, a bare ampersand, a `]]>` sequence — because one
+such article would otherwise take the other nineteen entries with it.
+
 ## Not done
 
 | Area | State |
@@ -219,7 +247,9 @@ one refuses and says why.
 | "Remember me", two-factor, session expiry policy | Not started |
 | Audit log of who did what | Not started |
 | `symfony-reviewer` pass on features 001–007 | **Open.** The constitution requires it at phase 4 of the workflow; none of the sessions that built these features could spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md` |
-| Search, feeds, sitemap, social preview metadata | Not started |
+| **Search** | Not started. A reader who knows a word from an article still has no way to find it. The largest remaining gap in the public site |
+| A sitemap index | Not needed yet, and recorded as a limit. One document holds fifty thousand addresses; past that the format requires an index of sitemaps, and this serves one document with a ten-thousand ceiling |
+| Full article bodies in the feed | Deliberately absent. The feed carries summaries, so it announces rather than duplicates |
 | Caching of any kind | Not started, and deliberately so — the menu costs one query per request |
 | Security and quality audits | Not started |
 | GitHub Actions CI | Written, **never executed**. The workflow is unverified |

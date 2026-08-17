@@ -1,6 +1,7 @@
 {% extends 'public/layout.html.twig' %}
 
 {% block title %}{{ site_name }}{% endblock %}
+{% block meta_description %}The most recent articles published on {{ site_name }}.{% endblock %}
 
 {% block main %}
     {% if page.items is empty %}

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+{#
+   The declaration is the first byte of the file on purpose: a parser reads it
+   before anything else and a leading newline makes the document invalid. Nothing
+   may be inserted above it, which is why this comment is here rather than there.
+
+   Every address is absolute, because this document is read somewhere other than
+   this site — `url()` throughout, and nothing built by concatenation.
+
+   Twig's HTML escaping is left on. An ampersand in an address has to be escaped
+   in XML exactly as it would be in HTML, so the default is already right.
+#}
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>{{ url('home') }}</loc>
+        <changefreq>daily</changefreq>
+        <priority>1.0</priority>
+    </url>
+{% for article in articles %}
+    <url>
+        <loc>{{ url('article_show', { slug: article.slug }) }}</loc>
+        <lastmod>{{ article.updatedAt|date('Y-m-d') }}</lastmod>
+    </url>
+{% endfor %}
+{% for page in pages %}
+    <url>
+        <loc>{{ url('page_show', { slug: page.slug }) }}</loc>
+        <lastmod>{{ page.updatedAt|date('Y-m-d') }}</lastmod>
+    </url>
+{% endfor %}
+{#
+   Listings have no content of their own, and therefore no modification date that
+   would mean anything. Saying nothing is better than saying today.
+#}
+{% for category in categories %}
+    <url>
+        <loc>{{ url('category_show', { slug: category.slug }) }}</loc>
+        <changefreq>weekly</changefreq>
+    </url>
+{% endfor %}
+{% for tag in tags %}
+    <url>
+        <loc>{{ url('tag_show', { slug: tag.slug }) }}</loc>
+        <changefreq>weekly</changefreq>
+    </url>
+{% endfor %}
+</urlset>
