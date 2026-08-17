@@ -5,7 +5,7 @@
 
 {% block preview_image %}
     {%- if page_content.featuredImage -%}
-        {{ url('media_show', { filename: page_content.featuredImage.filename }) }}
+        {{ url('media_sized', { size: 'large', filename: page_content.featuredImage.filename }) }}
     {%- endif -%}
 {% endblock %}
 
@@ -32,11 +32,11 @@
         <h1 class="mt-2 text-3xl font-semibold tracking-tight">{{ page_content.title }}</h1>
 
         {% if page_content.featuredImage %}
-            <img src="{{ path('media_show', { filename: page_content.featuredImage.filename }) }}"
+            <img src="{{ path('media_sized', { size: 'large', filename: page_content.featuredImage.filename }) }}"
                  alt="{{ page_content.featuredImage.altText }}"
                  class="mt-8 w-full rounded-lg"
                  loading="lazy"
-                 onerror="this.style.display='none'">
+                 data-hide-on-error>
         {% endif %}
 
         {# No author and no date: a page has neither. FR-010. #}

@@ -264,6 +264,33 @@ identity is the property that is checked, and a proxy with exceptions protects
 nothing. The error templates now carry `noindex` and no preview metadata at all,
 which is also what a 404 deserves on its own terms.
 
+### Feature 012 — media delivery
+
+Branch `012-media-delivery`. The two rows this file has carried since feature
+005: every image served at the size it was uploaded, and every byte sent again on
+every page view.
+
+| Area | State |
+| --- | --- |
+| Caching | Every served file carries an ETag and a modification date, and may be kept for a year as immutable. A reader holding either is answered 304 with no bytes |
+| Why a year is safe | A stored name is sixteen random bytes generated once and never reused, so the bytes at an address can never change. Changed bytes are a new upload at a new address |
+| Sizes | `/media/{size}/{filename}` — `thumbnail`, `medium`, `large`. Named, not numeric: a template asks for `thumbnail`, and a reader cannot invent a dimension to make the server generate |
+| Resizing | GD. Fits within a box, keeps proportions, **never crops and never enlarges**. A pixel budget of fifty megapixels, because a file inside the eight-megabyte upload limit can still decode to hundreds of megabytes |
+| Where they live | Beside the originals, outside the web root, served through the same controller with the same headers. Written to a temporary name and renamed, so two readers asking at once cannot be served half a file |
+| Lifecycle | A derived image is a cache, not a record — nothing about it reaches the database, and deleting a file deletes everything derived from it |
+| Whole project | **831 tests, 2352 assertions, passing** |
+
+**This feature found that two inline event handlers had been dead since feature
+008.** The delete confirmations and the hide-a-broken-image handler are inline
+script, which that feature's content security policy forbids — so the
+confirmations had stopped asking and missing images had been showing a broken
+icon. Nothing caught it because neither is something a functional test can see.
+They are now data attributes handled by `assets/behaviours.js`.
+
+That is the second time feature 008 broke something quietly. A policy forbidding
+inline script breaks *every* inline handler on a site, and nothing enumerated
+them at the time.
+
 ## Not done
 
 | Area | State |
@@ -271,8 +298,10 @@ which is also what a 404 deserves on its own terms.
 | API authentication and rate limiting | **Deliberately absent.** The API exposes exactly what the public website exposes, so a key would protect nothing while suggesting it did. Recorded as a decision, not an omission |
 | API search, filtering and sorting | Not started. Sections and labels only, newest first |
 | Bulk operations on sections, labels and accounts | **Deliberately absent.** Batch delete is disabled on every manage screen; a bulk action is the one route most likely to be re-added later without anybody remembering it bypasses a confirmation |
-| Image resizing, thumbnails, format conversion | Not started. Every image is served at the size it was uploaded |
-| A caching layer in front of file serving | Not started. A PHP process serves every image, which is the price of storing outside the web root and is worth measuring before optimising |
+| Format conversion | Not started. A derived image keeps the original's format; serving WebP or AVIF to browsers that accept them is a real improvement and a decision of its own |
+| Responsive image markup | Not started. A page names one size rather than offering a `srcset`, so a narrow screen still receives the size a wide one would |
+| A cache in front of the application | Still not started, and now much less pressing. A reader who has seen an image no longer asks for it again at all, which was most of the cost |
+| Cleaning up derived images nobody asks for | Not started. They are deleted with their original, but a size that stops being used leaves files behind until somebody empties the directory — which is safe to do at any time |
 | Private files | Not possible. Serving applies no restriction beyond "anybody may read", because a file in a published article has to be public and the CMS has no notion of a private one |
 | Concurrent editing of **sections, labels, accounts and files** | Still last-write-wins. Feature 009 covers articles and pages, where a conflict costs an afternoon; a section is a name and a parent, and a file record a description and alternative text. Recorded rather than pretended away |
 | Showing an editor *what* changed | Not started. A refused save says somebody else changed the content; it does not show their version beside yours |

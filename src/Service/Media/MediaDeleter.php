@@ -28,6 +28,7 @@ final readonly class MediaDeleter
         private ArticleRepository $articles,
         private PageRepository $pages,
         private MediaStorage $storage,
+        private DerivedImages $derived,
     ) {
     }
 
@@ -51,5 +52,11 @@ final readonly class MediaDeleter
         // This way round, a failure leaves an orphaned file at worst, and the
         // catalogue is already correct.
         $this->storage->remove($media);
+
+        // And everything derived from it. A derived image is named after the
+        // original's stored name, so once that name is gone nothing can ever
+        // address these again — they would sit in the directory forever, and
+        // nobody would know what they were.
+        $this->derived->removeAllFor($media);
     }
 }
