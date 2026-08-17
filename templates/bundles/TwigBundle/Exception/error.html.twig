@@ -11,6 +11,11 @@
 
 {% block title %}Something went wrong — {{ site_name }}{% endblock %}
 
+{# An error is not a page. See error404.html.twig for the whole reasoning. #}
+{% block meta %}
+    <meta name="robots" content="noindex, follow">
+{% endblock %}
+
 {% block main %}
     <h1 class="text-2xl font-semibold tracking-tight">Something went wrong</h1>
 

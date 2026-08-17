@@ -1,0 +1,27 @@
+{#
+   The search box.
+
+   `GET`, so a search is an address a reader can bookmark, share and go back to —
+   which is what a search result should be, and what a POST would take away.
+
+   The query is redisplayed as typed. Twig escapes it, so a query made of markup
+   appears as the characters somebody typed rather than as markup; FR-011 is
+   about a reader being able to see and correct what they asked for, and it is
+   also the reason a search box is a classic place to find an injection.
+#}
+<form method="get" action="{{ path('search') }}" role="search" class="mt-6 flex gap-2">
+    <label for="site-search" class="sr-only">Search</label>
+
+    <input type="search"
+           id="site-search"
+           name="q"
+           value="{{ query|default('') }}"
+           placeholder="Search"
+           maxlength="{{ constant('App\\Search\\SearchQuery::MAXIMUM_LENGTH') }}"
+           {% if autofocus|default(false) %}autofocus{% endif %}
+           class="w-full rounded border border-rule px-3 py-2">
+
+    <button type="submit" class="rounded bg-ink px-4 py-2 text-white hover:bg-accent">
+        Search
+    </button>
+</form>

@@ -227,6 +227,43 @@ And `FeedTest` publishes an article whose body is a catalogue of things that
 break XML — an unclosed tag, a bare ampersand, a `]]>` sequence — because one
 such article would otherwise take the other nineteen entries with it.
 
+### Feature 011 — search
+
+Branch `011-search`. The last of the reader-facing gaps. Everything remaining is
+now an operator concern or an optimisation.
+
+| Area | State |
+| --- | --- |
+| Search | `/search?q=` — published articles and pages, ranked, paged the way every other listing pages |
+| How | PostgreSQL full-text search. A title match weighs more than a passing mention; stemming means a search for *publishing* finds *published*, which a `LIKE` scan would not |
+| Markup | Stripped before indexing. Without that, a body's tags are words and a search for `strong` matches most of the site |
+| Indexes | GIN, over the same weighted expression the query uses — `idx_article_search`, `idx_page_search` |
+| Injection | The reader's words are a bound parameter turned into a query by `plainto_tsquery`, which reads operators, quotes and punctuation as words. Nothing builds a query expression by concatenation |
+| Bounds | Two characters minimum, two hundred maximum, and an empty query gets an invitation rather than a report of no results |
+| Not indexed | The results page tells crawlers `noindex` — it is generated from somebody else's words and has no permanent existence |
+| New directory | `src/Search/` — see `CLAUDE.md` |
+| Whole project | **803 tests, 2178 assertions, passing** |
+
+**This is the first delivery that does not read through a published-only
+repository method.** Every earlier one — the website, the API, the feed, the
+sitemap — is safe structurally, because the method it calls has no code path that
+returns a draft. A search needs a `WHERE` clause of its own, and a line of SQL is
+a thing that can be wrong.
+
+So the load-bearing test is not "a draft is absent from the results". It is that
+a word only a draft contains produces a response **identical** to a word nothing
+contains at all — because a leaked count, a leaked total or a paging control
+appearing would each answer "does unpublished work about this exist" without
+showing any of it.
+
+**One regression that test found, in feature 010's work rather than this one.**
+The preview and canonical tags name the address that was asked for, so a 404 for
+a draft and a 404 for an address that never existed had stopped being identical.
+Nothing was disclosed — a reader is only shown the address they typed — but the
+identity is the property that is checked, and a proxy with exceptions protects
+nothing. The error templates now carry `noindex` and no preview metadata at all,
+which is also what a 404 deserves on its own terms.
+
 ## Not done
 
 | Area | State |
@@ -247,7 +284,10 @@ such article would otherwise take the other nineteen entries with it.
 | "Remember me", two-factor, session expiry policy | Not started |
 | Audit log of who did what | Not started |
 | `symfony-reviewer` pass on features 001–007 | **Open.** The constitution requires it at phase 4 of the workflow; none of the sessions that built these features could spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md` |
-| **Search** | Not started. A reader who knows a word from an article still has no way to find it. The largest remaining gap in the public site |
+| Rate limiting on search | **Not implemented.** A public, unauthenticated, unbounded-cost endpoint, and the cheapest thing on the site to abuse. The query is bounded in length and the results in number, which is not the same as a limit. Belongs with the caching work below |
+| Snippet highlighting in results | Not started. A result shows the same summary the rest of the site shows, rather than the sentence the match was in |
+| Search in more than English | Not started. The stemming configuration is hard-coded, matching the language the constitution requires everything to be written in |
+| The search index expression is duplicated | Between `src/Search/SiteSearch.php` and the migration that creates the GIN indexes. They must match character for character or PostgreSQL silently reads every row instead. Nothing enforces it |
 | A sitemap index | Not needed yet, and recorded as a limit. One document holds fifty thousand addresses; past that the format requires an index of sitemaps, and this serves one document with a ten-thousand ceiling |
 | Full article bodies in the feed | Deliberately absent. The feed carries summaries, so it announces rather than duplicates |
 | Caching of any kind | Not started, and deliberately so — the menu costs one query per request |

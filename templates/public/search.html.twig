@@ -1,0 +1,75 @@
+{% extends 'public/layout.html.twig' %}
+
+{% block title %}{% if query.text %}{{ query.text }} — {% endif %}Search — {{ site_name }}{% endblock %}
+{% block meta_description %}Search {{ site_name }}.{% endblock %}
+
+{#
+   FR-013. A results page is not content: it is generated from somebody else's
+   words, it has no permanent existence, and an index full of them is what a
+   search engine calls thin content.
+#}
+{% block meta %}
+    <meta name="robots" content="noindex, follow">
+    {{ parent() }}
+{% endblock %}
+
+{% block main %}
+    <h1 class="text-2xl font-semibold tracking-tight">Search</h1>
+
+    {{ include('components/_search_form.html.twig', { query: query.text, autofocus: true }, with_context = false) }}
+
+    {% if query.isEmpty %}
+        {# An invitation, not a result. Reading "nothing matched" when you have
+           not asked anything reads as broken software. #}
+        <p class="mt-8 text-muted">Type a word or a phrase to search the site.</p>
+
+    {% elseif query.isTooShort %}
+        <p class="mt-8 text-muted">
+            Searches need at least {{ constant('App\\Search\\SearchQuery::MINIMUM_LENGTH') }} characters.
+        </p>
+
+    {% elseif page.isEmpty %}
+        {#
+           This exact page is what a word only a draft contains produces. If the
+           two ever differ, the search has become a way to discover unpublished
+           work without reading it.
+        #}
+        <p class="mt-8 text-muted">Nothing matched “{{ query.text }}”.</p>
+
+    {% else %}
+        <div class="mt-8 space-y-8">
+            {% for hit in page.items %}
+                <article>
+                    <p class="text-sm text-muted">{{ hit.isArticle ? 'Article' : 'Page' }}</p>
+
+                    <h2 class="mt-1 text-xl font-semibold tracking-tight">
+                        <a href="{{ hit.isArticle
+                            ? path('article_show', { slug: hit.slug })
+                            : path('page_show', { slug: hit.slug }) }}"
+                           class="text-ink no-underline hover:text-accent">
+                            {{ hit.title }}
+                        </a>
+                    </h2>
+
+                    {% if hit.publishedAt %}
+                        <p class="mt-1 text-sm text-muted">
+                            <time datetime="{{ hit.publishedAt|date('Y-m-d') }}">
+                                {{ hit.publishedAt|date('j F Y') }}
+                            </time>
+                        </p>
+                    {% endif %}
+
+                    {% if hit.summary %}
+                        <p class="mt-2">{{ hit.summary }}</p>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+
+        {{ include(
+            'components/_pagination.html.twig',
+            { page: page, route: 'search', routeParams: { q: query.text } },
+            with_context = false
+        ) }}
+    {% endif %}
+{% endblock %}

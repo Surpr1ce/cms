@@ -12,6 +12,24 @@
 
 {% block title %}Not found — {{ site_name }}{% endblock %}
 
+{#
+   No preview metadata and no canonical address, and both halves of that matter.
+
+   A 404 is not a page: there is nothing here to index, nothing to share and no
+   canonical address to declare, so the tags feature 010 puts on every page are
+   wrong here on their own terms.
+
+   They also broke the rule this template exists for. `og:url` and the canonical
+   link name the address that was asked for, so a 404 for a draft and a 404 for
+   an address that never existed stopped being byte-for-byte identical. Nothing
+   was disclosed — a reader is only shown the address they typed — but the
+   identity is the property that is checked, and a proxy that has acquired
+   exceptions stops protecting anything.
+#}
+{% block meta %}
+    <meta name="robots" content="noindex, follow">
+{% endblock %}
+
 {% block main %}
     <h1 class="text-2xl font-semibold tracking-tight">Not found</h1>
 

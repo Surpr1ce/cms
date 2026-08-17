@@ -26,6 +26,8 @@ Three layers, dependencies point inwards only:
 src/
   Entity/          Doctrine entities — domain state and invariants
   Repository/      Query objects; no business rules
+  Search/          Site search — the query, its read model, and the one query
+                   object that answers it
   Service/         Application services (slugging, publishing, uploads)
   Exception/       Domain exceptions — one class per refused rule
   Factory/         Foundry factories — one per entity, used by fixtures and tests
@@ -42,6 +44,12 @@ src/
 `App\Exception\DomainException`. Distinct classes let a test assert on the rule
 that was broken rather than on a message string, and let controllers map each to
 a different response without parsing text.
+
+`Search/` is its own namespace rather than a repository method because a result
+list ranks articles and pages against each other, which belongs to neither
+entity's repository — and because it is the one read path that cannot reuse a
+published-only repository method, so the rule that keeps unpublished work
+invisible is written there in full rather than inherited.
 
 `Factory/` is test-support code that lives in `src/` rather than `tests/` because
 `src/DataFixtures/` and `src/Story/` load development data through the same
