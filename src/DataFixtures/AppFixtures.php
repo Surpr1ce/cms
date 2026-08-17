@@ -4,11 +4,20 @@ declare(strict_types=1);
 
 namespace App\DataFixtures;
 
+use App\Entity\Media;
 use App\Repository\MediaRepository;
+use App\Service\Media\DerivedImages;
 use App\Service\Media\MediaStorage;
 use App\Story\AppStory;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
+
+use function in_array;
+use function is_dir;
+use function preg_match;
+
+use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Finder\Finder;
 
 /**
  * Loads the development dataset.
@@ -22,6 +31,9 @@ class AppFixtures extends Fixture
     public function __construct(
         private readonly MediaRepository $media,
         private readonly MediaStorage $storage,
+        private readonly PlaceholderImage $placeholders,
+        private readonly DerivedImages $derived,
+        private readonly Filesystem $filesystem,
     ) {
     }
 
@@ -32,6 +44,55 @@ class AppFixtures extends Fixture
         $manager->flush();
 
         $this->writePlaceholderBytes();
+        $this->removeWhatIsNoLongerCatalogued();
+    }
+
+    /**
+     * Clears out the files the previous dataset left behind.
+     *
+     * `doctrine:fixtures:load` purges the database and does not touch the disk,
+     * so every reload used to leave a full set of orphaned uploads and their
+     * derived copies — files with generated names that nothing points at and
+     * nobody can identify. After a few reloads the directory is mostly rubbish
+     * and the only way to tell what is live is to compare it against the
+     * catalogue by hand.
+     *
+     * Safe here in a way it would not be anywhere else: this runs only from a
+     * command that has *already* emptied the database, so anything uncatalogued
+     * is by definition the previous dataset. A name that does not look generated
+     * is left alone regardless — the same rule the pruning command follows, for
+     * the same reason.
+     */
+    private function removeWhatIsNoLongerCatalogued(): void
+    {
+        $catalogued = [];
+
+        foreach ($this->media->findAll() as $media) {
+            $catalogued[] = $media->getFilename();
+        }
+
+        $this->derived->remove($this->derived->orphans($catalogued));
+
+        if (!is_dir($this->storage->directory())) {
+            return;
+        }
+
+        $stale = [];
+
+        foreach (new Finder()->files()->in($this->storage->directory())->depth(0) as $file) {
+            // Only names this application generates: 32 hexadecimal characters
+            // and an extension. Anything else was put there by a person, and a
+            // fixture load is not entitled to an opinion about it.
+            if (1 !== preg_match('/^[0-9a-f]{32}\.[a-z0-9]{2,5}$/', $file->getFilename())) {
+                continue;
+            }
+
+            if (!in_array($file->getFilename(), $catalogued, true)) {
+                $stale[] = $file->getPathname();
+            }
+        }
+
+        $this->filesystem->remove($stale);
     }
 
     /**
@@ -53,7 +114,7 @@ class AppFixtures extends Fixture
                 continue;
             }
 
-            $this->storage->writeRaw($media, $this->placeholderFor($media->getMimeType()));
+            $this->storage->writeRaw($media, $this->placeholderFor($media));
         }
     }
 
@@ -66,23 +127,21 @@ class AppFixtures extends Fixture
      * and handed a PNG refuses to render it rather than working it out — which is
      * exactly what that header is for. The fixtures were the first thing it
      * caught.
+     *
+     * The second version was a one-by-one pixel, which browsers stretch to
+     * whatever the layout asks for. That stopped being enough at feature 012:
+     * the site now asks for a thumbnail, a medium and a large, and a single pixel
+     * scaled to sixteen hundred is not a picture of anything. A development site
+     * that looks broken teaches people to ignore it looking broken.
      */
-    private function placeholderFor(string $mimeType): string
+    private function placeholderFor(Media $media): string
     {
-        return match ($mimeType) {
-            'application/pdf' => "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n",
-            'image/jpeg' => $this->decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a'
-            .'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA'
-            .'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q=='),
-            'image/gif' => $this->decode('R0lGODlhAQABAIAAAMzMzP///yH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='),
-            // A 1×1 grey PNG. Browsers stretch it to whatever size the layout
-            // asks for, which is what a placeholder should do.
-            default => $this->decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='),
-        };
-    }
+        if ('application/pdf' === $media->getMimeType()) {
+            return "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n";
+        }
 
-    private function decode(string $base64): string
-    {
-        return base64_decode($base64, true) ?: '';
+        // Seeded with the stored filename, so each catalogued file is a
+        // different picture and the same one on every load.
+        return $this->placeholders->draw($media->getFilename(), $media->getMimeType());
     }
 }
