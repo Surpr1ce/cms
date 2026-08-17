@@ -21,9 +21,17 @@
                 <span class="mt-1 block text-sm text-muted">Standalone pages and the site menu.</span>
             </a>
         {% endif %}
+
+        {% if is_granted('MANAGE_MEDIA') %}
+            <a href="{{ path('admin_media_index') }}"
+               class="rounded border border-rule p-5 no-underline hover:border-accent">
+                <span class="block font-semibold text-ink">Files</span>
+                <span class="mt-1 block text-sm text-muted">Upload images and documents.</span>
+            </a>
+        {% endif %}
     </div>
 
     <p class="mt-8 text-sm text-muted">
-        Sections, labels, files and accounts do not have screens yet.
+        Sections, labels and accounts do not have screens yet.
     </p>
 {% endblock %}

@@ -27,6 +27,7 @@ final readonly class MediaDeleter
         private EntityManagerInterface $entityManager,
         private ArticleRepository $articles,
         private PageRepository $pages,
+        private MediaStorage $storage,
     ) {
     }
 
@@ -42,5 +43,13 @@ final readonly class MediaDeleter
 
         $this->entityManager->remove($media);
         $this->entityManager->flush();
+
+        // The bytes go after the row, not before.
+        //
+        // If removing the file failed first, the row would be gone and the bytes
+        // would stay — a file nobody can find or delete through the application.
+        // This way round, a failure leaves an orphaned file at worst, and the
+        // catalogue is already correct.
+        $this->storage->remove($media);
     }
 }

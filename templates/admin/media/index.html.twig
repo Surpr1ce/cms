@@ -1,0 +1,97 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Files — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <h1 class="text-2xl font-semibold tracking-tight">Files</h1>
+
+    <form method="post"
+          action="{{ path('admin_media_upload') }}"
+          enctype="multipart/form-data"
+          class="mt-6 rounded border border-rule p-5">
+        <h2 class="text-sm font-semibold">Upload a file</h2>
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+                <label for="file" class="block text-sm font-medium">File</label>
+                <input type="file" id="file" name="file" required class="mt-1 w-full text-sm">
+                <p class="mt-1 text-xs text-muted">
+                    JPEG, PNG, GIF, WebP, AVIF or PDF, up to {{ (maximumBytes / 1024 / 1024)|round }} MB.
+                    The type is decided by what is in the file, not by what it is called.
+                </p>
+            </div>
+
+            <div>
+                <label for="altText" class="block text-sm font-medium">Description</label>
+                <input type="text" id="altText" name="altText" required maxlength="255"
+                       class="mt-1 w-full rounded border border-rule px-3 py-2">
+                <p class="mt-1 text-xs text-muted">
+                    What the image shows. Required — a file with no description cannot be used
+                    as a lead image.
+                </p>
+            </div>
+        </div>
+
+        <input type="hidden" name="_token" value="{{ csrf_token('media-upload') }}">
+
+        <button type="submit" class="mt-4 rounded bg-ink px-4 py-2 text-sm text-white hover:bg-accent">
+            Upload
+        </button>
+    </form>
+
+    {% if files is empty %}
+        <p class="mt-8 text-muted">Nothing has been uploaded yet.</p>
+    {% else %}
+        <ul class="mt-8 space-y-4">
+            {% for file in files %}
+                <li class="flex flex-wrap items-start gap-4 rounded border border-rule p-4">
+                    <div class="w-24 shrink-0">
+                        {% if file.mimeType starts with 'image/' %}
+                            <img src="{{ path('media_show', { filename: file.filename }) }}"
+                                 alt="{{ file.altText }}"
+                                 class="h-24 w-24 rounded object-cover"
+                                 loading="lazy">
+                        {% else %}
+                            <span class="flex h-24 w-24 items-center justify-center rounded border border-rule text-xs text-muted">
+                                {{ file.mimeType|split('/')|last|upper }}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="min-w-0 grow">
+                        <p class="truncate font-medium">{{ file.originalName }}</p>
+                        <p class="text-xs text-muted">
+                            {{ file.mimeType }} · {{ (file.size / 1024)|round }} KB ·
+                            uploaded by {{ file.uploadedBy.displayName }} on {{ file.uploadedAt|date('j M Y') }}
+                        </p>
+
+                        <form method="post"
+                              action="{{ path('admin_media_describe', { id: file.id }) }}"
+                              class="mt-2 flex flex-wrap gap-2">
+                            <input type="text" name="altText" value="{{ file.altText }}" maxlength="255"
+                                   aria-label="Description of {{ file.originalName }}"
+                                   class="grow rounded border border-rule px-2 py-1 text-sm">
+                            <input type="hidden" name="_token" value="{{ csrf_token('media-describe-' ~ file.id) }}">
+                            <button type="submit" class="rounded border border-rule px-3 py-1 text-sm hover:border-accent">
+                                Save
+                            </button>
+                        </form>
+
+                        <p class="mt-1 text-xs text-muted">
+                            Address: <code>{{ path('media_show', { filename: file.filename }) }}</code>
+                        </p>
+                    </div>
+
+                    <form method="post"
+                          action="{{ path('admin_media_delete', { id: file.id }) }}"
+                          onsubmit="return confirm('Delete this file? Any content using it will keep working, without the image.')">
+                        <input type="hidden" name="_token" value="{{ csrf_token('media-delete-' ~ file.id) }}">
+                        <button type="submit" class="rounded border border-red-300 px-3 py-1 text-sm text-red-800 hover:bg-red-50">
+                            Delete
+                        </button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endblock %}

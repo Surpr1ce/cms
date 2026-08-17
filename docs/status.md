@@ -94,11 +94,30 @@ returned 422 silently; `setParameters()` needs an `ArrayCollection` in ORM 3; an
 two test assertions were wrong about their own requirements. All recorded in the
 feature's `tasks.md`.
 
+### Feature 005 — media uploads
+
+Branch `005-media-uploads`. Lead images are real files now.
+
+| Area | State |
+| --- | --- |
+| Uploading | `/admin/media` — editorial only. Accepted by **detected** type against an allow-list, size-limited to 8 MB, description required |
+| Storage | `var/uploads/`, **outside the web root**. No web server configuration can serve those bytes directly, so nothing there can be executed |
+| Serving | `/media/{filename}` through a controller, with the recorded type, `X-Content-Type-Options: nosniff`, images inline and everything else as an attachment. See [ADR 11](adr/0011-serve-uploads-through-the-application.md) |
+| Hostile catalogue | PHP named `.php`, PHP renamed `.jpg`, a double extension, a polyglot PNG, an SVG, HTML, a shell script, an executable, an empty file — none catalogued, none written. Traversal and absolute-path names never touch a path at all |
+| Whole project | **645 tests, 1498 assertions, passing** |
+
+**`nosniff` caught the fixtures.** They wrote PNG bytes for records catalogued as
+JPEG; a browser told "this is a JPEG" and handed a PNG refuses to render it. The
+first real mismatch the header found was our own.
+
 ## Not done
 
 | Area | State |
 | --- | --- |
-| Screens for sections, labels, files and accounts | Not started — the generic CRUD the conventions assign to EasyAdmin |
+| Screens for sections, labels and accounts | Not started — the generic CRUD the conventions assign to EasyAdmin |
+| Image resizing, thumbnails, format conversion | Not started. Every image is served at the size it was uploaded |
+| A caching layer in front of file serving | Not started. A PHP process serves every image, which is the price of storing outside the web root and is worth measuring before optimising |
+| Private files | Not possible. Serving applies no restriction beyond "anybody may read", because a file in a published article has to be public and the CMS has no notion of a private one |
 | Optimistic locking | **Not implemented.** Two people editing the same article: the second save wins, silently |
 | A rich-text editor | Not started, deliberately. The body is a text area containing markup, so sanitising does not depend on an editor behaving |
 | A content security policy | Not started. Worth adding as a second layer on top of sanitising, not instead of it |

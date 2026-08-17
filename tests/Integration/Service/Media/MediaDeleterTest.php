@@ -13,6 +13,7 @@ use App\Repository\ArticleRepository;
 use App\Repository\MediaRepository;
 use App\Repository\PageRepository;
 use App\Service\Media\MediaDeleter;
+use App\Service\Media\MediaStorage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
@@ -57,7 +58,14 @@ final class MediaDeleterTest extends KernelTestCase
         $entityManager = $container->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
 
-        $this->deleter = new MediaDeleter($entityManager, $articles, $pages);
+        // Feature 005 gave the deleter storage to clear as well as a row. These
+        // records have no bytes behind them — MediaStorage::remove() is content
+        // with that, which is itself the behaviour a record outliving its file
+        // depends on.
+        $storage = $container->get(MediaStorage::class);
+        self::assertInstanceOf(MediaStorage::class, $storage);
+
+        $this->deleter = new MediaDeleter($entityManager, $articles, $pages, $storage);
     }
 
     public function testTheFileRecordIsRemoved(): void
