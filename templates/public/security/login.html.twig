@@ -49,5 +49,13 @@
                 class="rounded bg-ink px-4 py-2 text-white hover:bg-accent">
             Sign in
         </button>
+
+        {# FR-001. Before this existed, a forgotten password meant finding
+           somebody with a shell on the server. #}
+        <p class="text-sm">
+            <a href="{{ path('password_reset_request') }}" class="text-accent no-underline hover:underline">
+                Forgotten your password?
+            </a>
+        </p>
     </form>
 {% endblock %}

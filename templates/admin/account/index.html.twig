@@ -1,0 +1,81 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Your account — {{ site_name }}{% endblock %}
+
+{% block main %}
+    <h1 class="text-2xl font-semibold tracking-tight">Your account</h1>
+
+    <dl class="mt-6 grid max-w-md grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+        <dt class="text-muted">Email address</dt>
+        <dd>{{ account.email }}</dd>
+
+        <dt class="text-muted">Display name</dt>
+        <dd>{{ account.displayName }}</dd>
+
+        {#
+           The roles, shown but not editable. Somebody granting themselves an
+           administrator's permissions from their own account page is the oldest
+           privilege-escalation there is; who holds what is an administrator's
+           decision, made on the accounts screen.
+        #}
+        <dt class="text-muted">Permissions</dt>
+        <dd>{{ account.roles|join(', ') }}</dd>
+    </dl>
+
+    <h2 class="mt-10 text-lg font-semibold tracking-tight">Change your password</h2>
+
+    <form method="post" action="{{ path('admin_account') }}" class="mt-4 max-w-sm space-y-5">
+        {% if error|default(null) %}
+            <p class="rounded border border-rule bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+                {{ error }}
+            </p>
+        {% endif %}
+
+        <div>
+            <label for="currentPassword" class="block text-sm font-medium">Your current password</label>
+            <input type="password"
+                   id="currentPassword"
+                   name="currentPassword"
+                   required
+                   autocomplete="current-password"
+                   class="mt-1 w-full rounded border border-rule px-3 py-2">
+            <p class="mt-1 text-sm text-muted">
+                Asked for because a browser left open is not consent to change a password.
+            </p>
+        </div>
+
+        <div>
+            <label for="password" class="block text-sm font-medium">New password</label>
+            <input type="password"
+                   id="password"
+                   name="password"
+                   required
+                   minlength="12"
+                   autocomplete="new-password"
+                   class="mt-1 w-full rounded border border-rule px-3 py-2">
+            <p class="mt-1 text-sm text-muted">At least 12 characters.</p>
+        </div>
+
+        <div>
+            <label for="confirmation" class="block text-sm font-medium">Again</label>
+            <input type="password"
+                   id="confirmation"
+                   name="confirmation"
+                   required
+                   autocomplete="new-password"
+                   class="mt-1 w-full rounded border border-rule px-3 py-2">
+        </div>
+
+        <input type="hidden" name="_token" value="{{ csrf_token('change-password') }}">
+
+        <button type="submit" class="rounded bg-ink px-4 py-2 text-white hover:bg-accent">
+            Change it
+        </button>
+    </form>
+
+    <p class="mt-6 max-w-prose text-sm text-muted">
+        Changing your password here does not sign you out anywhere else. This CMS keeps no record
+        of open sessions, so it cannot end them — if you think somebody else has your password,
+        change it and tell whoever runs the site.
+    </p>
+{% endblock %}

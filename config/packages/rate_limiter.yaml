@@ -1,0 +1,30 @@
+framework:
+    rate_limiter:
+        # The password reset form sends an email to somebody else's inbox on
+        # request, which makes it the one unauthenticated route on this site that
+        # can be turned into a way of bothering a third party. The limit protects
+        # the person whose address is being used, not the one asking.
+        #
+        # Five an hour is generous for somebody who has genuinely forgotten a
+        # password and mistyped their address twice, and useless to anybody
+        # trying to use this CMS as a mail relay.
+        password_reset:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 hour'
+
+when@test:
+    framework:
+        rate_limiter:
+            password_reset:
+                policy: 'sliding_window'
+                # Deliberately higher in tests than in production. The counters
+                # are shared within a kernel, and a suite that signs in and
+                # resets repeatedly would otherwise exhaust an allowance meant
+                # for one person — the same problem feature 008 solved for
+                # sign-in throttling, and the same reasoning.
+                #
+                # The test that proves the limit exists reaches it by asking
+                # this many times.
+                limit: 5
+                interval: '1 hour'

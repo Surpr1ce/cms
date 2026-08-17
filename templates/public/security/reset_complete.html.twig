@@ -1,0 +1,56 @@
+{% extends 'public/layout.html.twig' %}
+
+{% block title %}Set a new password — {{ site_name }}{% endblock %}
+{% block meta_description %}Set a new password for your {{ site_name }} account.{% endblock %}
+
+{% block meta %}
+    {# `nofollow` as well as `noindex`: the address in the bar is a credential,
+       and nothing should be persuaded to follow it anywhere. #}
+    <meta name="robots" content="noindex, nofollow">
+    {{ parent() }}
+{% endblock %}
+
+{% block main %}
+    <h1 class="text-2xl font-semibold tracking-tight">Set a new password</h1>
+
+    <form method="post"
+          action="{{ path('password_reset_complete', { token: token }) }}"
+          class="mt-8 max-w-sm space-y-5">
+        {% if error|default(null) %}
+            <p class="rounded border border-rule bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+                {{ error }}
+            </p>
+        {% endif %}
+
+        <div>
+            <label for="password" class="block text-sm font-medium">New password</label>
+            {# Never given a value: a password is not echoed back, even one being
+               chosen. #}
+            <input type="password"
+                   id="password"
+                   name="password"
+                   required
+                   minlength="12"
+                   autocomplete="new-password"
+                   autofocus
+                   class="mt-1 w-full rounded border border-rule px-3 py-2">
+            <p class="mt-1 text-sm text-muted">At least 12 characters.</p>
+        </div>
+
+        <div>
+            <label for="confirmation" class="block text-sm font-medium">Again</label>
+            <input type="password"
+                   id="confirmation"
+                   name="confirmation"
+                   required
+                   autocomplete="new-password"
+                   class="mt-1 w-full rounded border border-rule px-3 py-2">
+        </div>
+
+        <input type="hidden" name="_token" value="{{ csrf_token('password-reset-complete') }}">
+
+        <button type="submit" class="rounded bg-ink px-4 py-2 text-white hover:bg-accent">
+            Set the password
+        </button>
+    </form>
+{% endblock %}
