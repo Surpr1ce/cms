@@ -1,6 +1,6 @@
 # Implementation status
 
-Last updated: 2026-08-16
+Last updated: 2026-08-17
 
 This file records what actually exists in the codebase, as distinct from what the
 design documents describe. Documents that describe an intended design are marked
@@ -127,13 +127,37 @@ asks both delivery mechanisms what is published and compares them. It is the
 assertion [ADR 2](adr/0002-twig-monolith-with-read-only-api.md) exists to make
 true, and nothing had checked it until this feature.
 
+### Feature 007 — taxonomy and account administration
+
+Branch `007-taxonomy-and-accounts`. The generic-CRUD half of the administration
+area, which the conventions reserved for EasyAdmin and which had stayed empty
+through five features.
+
+| Area | State |
+| --- | --- |
+| Screens | Sections, labels and accounts under `/admin/manage`, EasyAdmin 5. The hand-written screens keep `/admin/articles`, `/admin/pages` and `/admin/media` |
+| Addresses | Generated once through `UniqueSlugGenerator` and then fixed. **No screen exposes a slug field**, because a form offering to edit one invites breaking every link that already exists |
+| Deletion | Routed through `CategoryDeleter` and `UserDeleter` rather than the scaffold. The scaffolded delete would have made subsections top-level instead of moving them up, and would have answered an owned account with a foreign-key name instead of a sentence |
+| Passwords | The field is **unmapped**, so the stored hash is never loaded into a form and never rendered. Blank on edit means unchanged |
+| Permissions | Taxonomy behind `MANAGE_TAXONOMY`, accounts behind `MANAGE_ACCOUNTS`, self-deletion refused by `DELETE_ACCOUNT`. The menu is filtered by the same voters the controllers check |
+| Batch delete | Disabled everywhere. Both routes funnel through `deleteEntity()`, so the rule holds by override rather than by the absence of a button |
+| Whole project | **717 tests, 1756 assertions, passing** |
+
+**Three defects the tests found.** EasyAdmin passes the subject to a permission
+check, `AdministrationVoter` abstained on anything with a subject, and every
+manage screen was therefore silently denied — to administrators included. The
+dashboard at `/admin/manage` was reachable by an author, because `access_control`
+over `^/admin` only asks for a content role and the CRUD controllers guard their
+own actions rather than the landing page. And the first override was on
+`delete()`, which the batch route bypasses entirely.
+
 ## Not done
 
 | Area | State |
 | --- | --- |
 | API authentication and rate limiting | **Deliberately absent.** The API exposes exactly what the public website exposes, so a key would protect nothing while suggesting it did. Recorded as a decision, not an omission |
 | API search, filtering and sorting | Not started. Sections and labels only, newest first |
-| Screens for sections, labels and accounts | Not started — the generic CRUD the conventions assign to EasyAdmin |
+| Bulk operations on sections, labels and accounts | **Deliberately absent.** Batch delete is disabled on every manage screen; a bulk action is the one route most likely to be re-added later without anybody remembering it bypasses a confirmation |
 | Image resizing, thumbnails, format conversion | Not started. Every image is served at the size it was uploaded |
 | A caching layer in front of file serving | Not started. A PHP process serves every image, which is the price of storing outside the web root and is worth measuring before optimising |
 | Private files | Not possible. Serving applies no restriction beyond "anybody may read", because a file in a published article has to be public and the CMS has no notion of a private one |
@@ -144,13 +168,9 @@ true, and nothing had checked it until this feature.
 | Registration, password reset, password change, email | Not started |
 | "Remember me", two-factor, session expiry policy | Not started |
 | Audit log of who did what | Not started |
-| `symfony-reviewer` pass on features 001, 002 and 003 | **Open.** The constitution requires it at phase 4 of the workflow; the sessions that built both features could not spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md` |
-| Wrong-role functional tests | Not applicable yet. `docs/testing.md` requires an anonymous case *and* a wrong-role case for every route; every route so far is public, so there is no role to be wrong. It starts applying with the first protected route |
-| Admin screens (EasyAdmin and hand-written) | Not started. EasyAdmin is installed but unconfigured, and `/admin` is a placeholder page saying so |
-| Media upload handling | Not started. Feature 001 catalogues files and feature 002 renders a lead image from the recorded filename, but nothing puts bytes on disk — so an article with an image renders without it, by design |
+| `symfony-reviewer` pass on features 001–007 | **Open.** The constitution requires it at phase 4 of the workflow; none of the sessions that built these features could spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md` |
 | Search, feeds, sitemap, social preview metadata | Not started |
 | Caching of any kind | Not started, and deliberately so — the menu costs one query per request |
-| Read-only API resources | Not started. API Platform is installed but exposes nothing |
 | Security and quality audits | Not started |
 | GitHub Actions CI | Written, **never executed**. The workflow is unverified |
 
