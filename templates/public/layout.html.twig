@@ -15,6 +15,16 @@
                 </a>
 
                 {{ include('components/_menu.html.twig', { pages: public_menu() }, with_context = false) }}
+
+                {# FR-012: on every page, because a search box a reader has to
+                   navigate to is a search box nobody uses. #}
+                <div class="w-full max-w-xs">
+                    {{ include(
+                        'components/_search_form.html.twig',
+                        { query: app.request.query.get('q'), autofocus: false },
+                        with_context = false
+                    ) }}
+                </div>
             </div>
         </header>
 
