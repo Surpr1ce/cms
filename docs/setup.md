@@ -68,8 +68,9 @@ database 5432` after every `up` is not one.
 reachable at once, which is deliberate — they are two different databases with the
 same tables, and it has to stay obvious which one a query is answering.
 
-The compose password is the recipe default `!ChangeMe!` unless `POSTGRES_PASSWORD`
-is set.
+The compose password is `app`, set by `POSTGRES_PASSWORD` in `.env` — which
+compose reads as well as Symfony — rather than the recipe default `!ChangeMe!`.
+See the connection table below for why.
 
 ```bash
 docker compose stop                   # stop, keeping the data volume
@@ -113,8 +114,18 @@ too (`docker compose exec database psql -U app -d app`).
 | Connection | Host | Port | Database | User | Password |
 | --- | --- | --- | --- | --- | --- |
 | Native — what `composer serve` shows | `127.0.0.1` | 5432 | `app` | `app` | `app` |
-| Container — what `docker compose` shows | `127.0.0.1` | 5433 | `app` | `app` | `!ChangeMe!` |
+| Container — what `docker compose` shows | `127.0.0.1` | **5433** | `app` | `app` | `app` |
 | Test — rebuilt and rolled back by the suite | `127.0.0.1` | 5432 | `app_test` | `app` | `app` |
+
+**The same password in all three on purpose.** The container inherited the Flex
+recipe's `!ChangeMe!` while the native instance uses `app`, which meant two
+identical-looking databases that differed only in a password nobody could guess
+from the connection — the first thing that went wrong when a client was pointed at
+them. `POSTGRES_PASSWORD` in `.env` now sets it for compose, so a fresh
+`docker compose down -v && docker compose up -d` comes back the same. On a
+database listening on localhost with demo content in it, distinct passwords buy
+confusion rather than safety; a deployment sets a real one from its own
+environment, as `docs/status.md` records for `APP_SECRET`.
 
 **DBeaver** (installed with `winget install DBeaver.DBeaver.Community`) picks all
 three up from its workspace; the passwords are not stored, so it asks once.
