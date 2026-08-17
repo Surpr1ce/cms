@@ -1,5 +1,45 @@
 
 services:
+  # The application itself: FrankenPHP serving public/, built by ./Dockerfile.
+  #
+  # Written by hand and kept outside the recipe markers below, which belong to
+  # Symfony Flex and are rewritten when a recipe is updated.
+  #
+  # `docker compose up --build` is the whole of it: the database comes up first
+  # and is waited for, migrations run, an empty database is seeded with the demo
+  # content, and the site answers on http://localhost:8080.
+  app:
+    build:
+      context: .
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: 0
+      # A demonstration secret. A real deployment sets this from its own
+      # environment — docs/status.md records that nothing refuses to start
+      # without it, which is precisely why it is written here rather than left
+      # empty and forgotten.
+      APP_SECRET: ${APP_SECRET:-demonstration-only-not-a-real-secret}
+      # `database` is the service name, and compose's network resolves it. The
+      # credentials are the ones the database service is created with below.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
+      # The site answers only the hosts named here, and refuses the rest with a
+      # 400 — see docs/setup.md. `$$` is one dollar sign after compose has read
+      # the file.
+      SYMFONY_TRUSTED_HOSTS: ^(localhost|127\.0\.0\.1)$$
+      # Where the password-reset link points, which is deliberately not taken
+      # from the request's Host header. See PasswordResetMailer.
+      DEFAULT_URI: http://localhost:8080
+      MAILER_DSN: null://null
+      SERVER_NAME: :8080
+    ports:
+      - "8080:8080"
+    volumes:
+      # Uploads outlive the container; everything else in var/ is rebuilt.
+      - app_uploads:/app/var/uploads
+
 ###> doctrine/doctrine-bundle ###
   database:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
@@ -20,6 +60,8 @@ services:
 ###< doctrine/doctrine-bundle ###
 
 volumes:
+  app_uploads:
+
 ###> doctrine/doctrine-bundle ###
   database_data:
 ###< doctrine/doctrine-bundle ###

@@ -4,6 +4,22 @@ Two supported paths for the database. Both are verified on this machine; the
 native one is the default because it holds the working databases. See
 [ADR 7](adr/0007-docker-is-available-after-all.md).
 
+**If you only want to look at the application, skip all of this:**
+
+```bash
+docker compose up -d --build          # then open http://localhost:8080
+```
+
+That builds the whole site into one container, waits for its own PostgreSQL,
+migrates, loads the demo content and serves it. It needs no PHP, no Composer and
+no database on your machine. `admin@example.com` / `development-only` signs you in.
+See [ADR 15](adr/0015-a-container-for-showing-the-application.md) for what it is
+and, more importantly, what it is not: a demonstration of the application rather
+than a deployment of it, carrying development dependencies on purpose so that it
+can seed itself.
+
+The rest of this file is how the project is *developed*, which is natively.
+
 ## Prerequisites
 
 | Requirement | Check |
@@ -55,8 +71,34 @@ docker compose stop                   # stop, keeping the data volume
 docker compose ps                     # what is running, and on which port
 ```
 
-`compose.override.yaml` also defines a Mailpit container for outbound mail. It is
-unused until a feature sends any.
+`compose.override.yaml` also defines a Mailpit container for outbound mail. It
+starts with the stack and is unused: `MAILER_DSN` is `null://null` everywhere, so
+the one email this application sends goes nowhere. Pointing it at Mailpit means
+pinning its ports and setting `MAILER_DSN=smtp://127.0.0.1:<port>`.
+
+## Path C — the whole application in Docker
+
+```bash
+docker compose up -d --build          # http://localhost:8080
+docker compose logs -f app            # migrations, seeding, then the server
+docker compose down                   # stop, keeping the data
+docker compose down -v                # stop and forget everything, including uploads
+```
+
+The `app` service is built from [`Dockerfile`](../Dockerfile): FrankenPHP, PHP 8.4
+with `intl`, `pdo_pgsql`, `gd`, `exif`, `opcache` and `zip`, the assets compiled
+and the cache warmed at build time. On start it waits for the database's
+healthcheck, migrates, and — **only if the database holds no accounts** — loads the
+demo fixtures. So restarting the stack keeps whatever you created; `down -v` is
+what forgets it.
+
+This path does not touch the native PostgreSQL or the `app`/`app_test` databases
+on your machine. It runs its own PostgreSQL in the `database` container with its
+own volume, which is why its content and the content you see through
+`composer serve` are two different sites.
+
+Verified the same way the native path is: `node tools/browser-check.mjs
+http://localhost:8080` passes all twenty-one checks against the container.
 
 ## Bring the application up
 

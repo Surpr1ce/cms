@@ -1,0 +1,32 @@
+# The build context. Everything here is either rebuilt inside the image, secret,
+# or irrelevant to it — and a smaller context is the difference between a build
+# that starts immediately and one that spends a minute uploading vendor/.
+
+.git
+.github
+.idea
+.claude
+
+vendor
+var
+public/assets
+public/bundles
+assets/vendor
+
+# Environment overrides belong to a machine, not to an image. The compose file
+# passes what the container needs.
+.env.local
+.env.*.local
+
+# Test and analysis output.
+.phpunit.cache
+.php-cs-fixer.cache
+coverage
+
+# Documentation and specifications: read them in the repository.
+docs
+specs
+tools
+
+*.md
+!README.md

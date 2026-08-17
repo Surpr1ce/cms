@@ -675,6 +675,32 @@ refused it, so the tool could only ever check the environment nobody visits. It
 clicks the button now, asserts that signing in worked rather than assuming it, and
 passes twenty-one checks against both environments.
 
+### After the release — the application in a container
+
+`compose.yaml` came from a Flex recipe and started a database, so "start the cms
+container" gave somebody PostgreSQL and no website. It builds the whole application
+now — `docker compose up -d --build`, FrankenPHP, port 8080, its own PostgreSQL,
+migrating and seeding itself on first start and leaving the data alone on every
+start after that. Reasoning and limits in
+[ADR 15](adr/0015-a-container-for-showing-the-application.md); the short version is
+that it is a way to *show* the application, not a deployment of it, and native
+PostgreSQL with `composer serve` is still how the project is developed.
+
+Three faults surfaced during the build, none of them visible to the test suite
+because none is about the application's rules: `gd` was missing and the fixtures
+draw placeholder images, so the first build died three seconds into loading the
+demo content while CI — which installs `ctype, iconv, pdo_pgsql, intl` — stayed
+green; `assets/vendor/` is gitignored, so the image had to run `importmap:install`
+rather than copy whatever a developer's machine held; and the "is this database
+empty" check queried `user` instead of `app_user`, so it threw, the exception read
+as "nothing there", and **every restart purged the database and reloaded the
+fixtures** — anything created during a demonstration would have disappeared at the
+worst possible moment.
+
+The container is verified the same way the native build is: `node
+tools/browser-check.mjs http://localhost:8080` passes all twenty-one checks,
+including signing in, so this section can say it works rather than that it starts.
+
 ### After feature 017 — the reviewer and security passes
 
 Not a feature: the two reviews the constitution asks for at phase 4, run for the

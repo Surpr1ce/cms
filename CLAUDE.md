@@ -155,6 +155,12 @@ files back to the built-in server and everything else to Symfony. Without it,
 pretty addresses 404 or the compiled assets do — the two halves fail in opposite
 environments, so check a change to it against both.
 
+To *show* the application rather than develop it, `docker compose up -d --build`
+builds the whole site into one container and serves it on port 8080, seeding itself
+on first start. It is a demonstration image and says so — development dependencies
+included, because the demo fixtures need them. See
+[ADR 15](docs/adr/0015-a-container-for-showing-the-application.md).
+
 PostgreSQL runs natively on this machine by default. Docker is also available and
 `compose.yaml` is verified — `docker compose up -d database` works — but the
 native instance holds the migrated databases, so it stays the default. Full

@@ -27,7 +27,7 @@ declare(strict_types=1);
  * web server in front, and that web server does this job.
  */
 
-$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', \PHP_URL_PATH);
 
 if (is_string($path) && '/' !== $path) {
     $file = __DIR__.'/../public'.$path;
