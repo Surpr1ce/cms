@@ -52,7 +52,7 @@ final class TagRepository extends ServiceEntityRepository implements SluggedRepo
     public function findOneInUseBySlug(string $slug): ?Tag
     {
         $tag = $this->createQueryBuilder('tag')
-            ->innerJoin(Article::class, 'article', Join::WITH, 'tag MEMBER OF article.tags')
+            ->innerJoin(Article::class, 'article', Join::ON, 'tag MEMBER OF article.tags')
             ->andWhere('tag.slug = :slug')
             ->andWhere('article.status = :status')
             ->setParameter('slug', $slug)
@@ -78,7 +78,7 @@ final class TagRepository extends ServiceEntityRepository implements SluggedRepo
         return array_values(
             $this->createQueryBuilder('tag')
                 ->distinct()
-                ->innerJoin(Article::class, 'article', Join::WITH, 'tag MEMBER OF article.tags')
+                ->innerJoin(Article::class, 'article', Join::ON, 'tag MEMBER OF article.tags')
                 ->andWhere('article.status = :status')
                 ->setParameter('status', ContentStatus::Published)
                 ->orderBy('tag.name', 'ASC')

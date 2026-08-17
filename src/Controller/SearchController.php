@@ -8,6 +8,7 @@ use App\Search\SearchQuery;
 use App\Search\SiteSearch;
 use App\Service\Pagination\Paginator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
@@ -30,6 +31,9 @@ final class SearchController extends AbstractController
     public function __construct(
         private readonly SiteSearch $search,
         private readonly Paginator $paginator,
+        // See SearchSuggestionController: the limiter is named by attribute
+        // rather than by the argument's name, which Symfony 8.1 deprecates.
+        #[Target('search')]
         private readonly RateLimiterFactoryInterface $searchLimiter,
     ) {
     }
