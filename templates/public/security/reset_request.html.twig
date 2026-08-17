@@ -1,0 +1,64 @@
+{% extends 'public/layout.html.twig' %}
+
+{% block title %}Reset your password — {{ site_name }}{% endblock %}
+{% block meta_description %}Ask for a link to set a new password on {{ site_name }}.{% endblock %}
+
+{% block meta %}
+    <meta name="robots" content="noindex, nofollow">
+    {{ parent() }}
+{% endblock %}
+
+{% block main %}
+    <h1 class="text-2xl font-semibold tracking-tight">Reset your password</h1>
+
+    {% if sent|default(false) %}
+        {#
+           This message is shown whether or not the address holds an account,
+           and its wording is chosen for that. "We have sent you an email" would
+           be a lie half the time and, worse, a true statement the other half —
+           which together make this form a way of testing any list of addresses
+           against this installation.
+
+           So it says what was done, not what happened: a link is on its way *if*
+           there is an account. Somebody who holds the account learns nothing they
+           did not know; somebody who does not learns nothing at all.
+        #}
+        <p class="mt-6 rounded border border-rule bg-green-50 px-4 py-3 text-sm text-green-800" role="status">
+            If that address has an account here, a link to set a new password is on its way to it.
+            The link lasts an hour.
+        </p>
+
+        <p class="mt-6 text-sm">
+            <a href="{{ path('login') }}" class="text-accent no-underline hover:underline">&larr; Back to signing in</a>
+        </p>
+    {% else %}
+        {% if tooMany|default(false) %}
+            <p class="mt-6 rounded border border-rule bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+                Too many requests from here. Try again later.
+            </p>
+        {% endif %}
+
+        <p class="mt-4 max-w-prose text-muted">
+            Give the address your account uses and we will send a link to set a new password.
+        </p>
+
+        <form method="post" action="{{ path('password_reset_request') }}" class="mt-8 max-w-sm space-y-5">
+            <div>
+                <label for="email" class="block text-sm font-medium">Email address</label>
+                <input type="email"
+                       id="email"
+                       name="email"
+                       required
+                       autocomplete="email"
+                       autofocus
+                       class="mt-1 w-full rounded border border-rule px-3 py-2">
+            </div>
+
+            <input type="hidden" name="_token" value="{{ csrf_token('password-reset') }}">
+
+            <button type="submit" class="rounded bg-ink px-4 py-2 text-white hover:bg-accent">
+                Send the link
+            </button>
+        </form>
+    {% endif %}
+{% endblock %}

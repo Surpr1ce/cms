@@ -51,3 +51,11 @@ services:
     App\Service\Media\UploadedFileValidator:
         arguments:
             $maximumBytes: '%app.upload_max_bytes%'
+
+    # The form-login authenticator belongs to a firewall rather than to a class,
+    # so there is nothing for autowiring to find. PasswordResetController uses it
+    # to sign somebody in the moment their new password is stored.
+    App\Controller\PasswordResetController:
+        arguments:
+            $formLogin: '@security.authenticator.form_login.main'
+            $passwordResetLimiter: '@limiter.password_reset'

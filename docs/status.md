@@ -291,6 +291,32 @@ That is the second time feature 008 broke something quietly. A policy forbidding
 inline script breaks *every* inline handler on a site, and nothing enumerated
 them at the time.
 
+### Feature 013 — account recovery
+
+Branch `013-account-recovery`. Until this, there was one way into the CMS and no
+way back: a forgotten password meant finding somebody with a shell on the server,
+and on a one-administrator installation it meant the site could no longer be
+administered at all.
+
+| Area | State |
+| --- | --- |
+| Forgotten password | `/reset-password` — ask for a link, receive it by email, set a new password, and be signed in |
+| Telling a stranger nothing | The response for an address that holds an account and one that does not is **byte-for-byte identical**, and no message is sent for the second. Verified both in the suite and by hand |
+| The stored token | A SHA-256 hash, never the token. A stolen database yields no working links, and the test reads the row to prove it |
+| Why not the password hasher | It is 128 bits of randomness with nothing to guess. A deliberately slow hash on an unauthenticated lookup buys no strength and offers a way to exhaust the server |
+| A link's life | One hour, one use. Asking again invalidates the earlier one. Invalid, expired, used and superseded all get the same refusal, because telling them apart tells whoever holds a stolen link which kind they have |
+| Limiting | Five requests an hour per client, so this form cannot be used to send mail to somebody else's inbox on demand |
+| Changing a password on purpose | `/admin/account`, and it **requires the current password** — a browser left open on a shared machine is not consent to hand an account over |
+| Whole project | **854 tests, 2475 assertions, passing** |
+
+**Registration is still deliberately absent.** Accounts are created by an
+administrator; a public sign-up form is a way to fill a database with strangers.
+
+**A password change does not end other sessions**, and the account screen says so
+in as many words. This CMS keeps no registry of open sessions, so it cannot end
+them — and a change that quietly implied otherwise would protect less than
+somebody would assume.
+
 ## Not done
 
 | Area | State |
@@ -309,7 +335,10 @@ them at the time.
 | Inline **styles** are still allowed | `style-src` keeps `unsafe-inline`, openly. The generic administration screens carry style attributes on elements this project does not author, and an attribute cannot be marked with a nonce — naming a nonce there would make a browser ignore `unsafe-inline` altogether and break those screens. A style can deface a page; a script can take a session |
 | A policy reporting endpoint | Not started. A `report-to` pointing nowhere is a comment, so the policy is enforced instead |
 | Rate limiting on anything but sign-in | Not started. The public site and the read-only API are unthrottled |
-| Registration, password reset, password change, email | Not started |
+| Public registration | **Deliberately absent.** Accounts are created by an administrator; a sign-up form is a way to fill a database with strangers |
+| Ending other sessions on a password change | **Not possible.** This CMS keeps no registry of open sessions. The account screen says so rather than implying otherwise |
+| Any email other than a reset link | Not started. Nothing notifies anybody of anything else, and `MAILER_DSN` is `null://null` until somebody configures it |
+| Confirming a change of email address | Not started. An administrator can change an account's address on the accounts screen, and nothing verifies the new one belongs to anybody |
 | "Remember me", two-factor, session expiry policy | Not started |
 | Audit log of who did what | Not started |
 | `symfony-reviewer` pass on features 001–007 | **Open.** The constitution requires it at phase 4 of the workflow; none of the sessions that built these features could spawn subagents. Mechanical checks were verified directly and the evidence is in each feature's `tasks.md` |

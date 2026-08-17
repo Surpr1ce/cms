@@ -56,6 +56,11 @@ security:
         # accident.
         - { path: ^/login$, roles: PUBLIC_ACCESS }
 
+        # Getting back in has to be reachable by somebody who cannot sign in —
+        # which is the entire point of it, and would be a contradiction behind
+        # the firewall.
+        - { path: ^/reset-password, roles: PUBLIC_ACCESS }
+
         # Everything under /admin needs somebody signed in who holds at least one
         # content role. A list here means *any* of them, which matters because
         # there is no role hierarchy: an administrator holds ROLE_ADMIN and does

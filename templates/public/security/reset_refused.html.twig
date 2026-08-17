@@ -1,0 +1,33 @@
+{% extends 'public/layout.html.twig' %}
+
+{% block title %}That link no longer works — {{ site_name }}{% endblock %}
+{% block meta_description %}Ask for a new link to set a password on {{ site_name }}.{% endblock %}
+
+{% block meta %}
+    <meta name="robots" content="noindex, nofollow">
+    {{ parent() }}
+{% endblock %}
+
+{#
+   One page for four different situations: a link that never existed, one that
+   expired, one that has already been used, and one replaced by a later request.
+
+   Saying which would tell somebody holding a link they should not have exactly
+   what kind of link they are holding — and telling the person who legitimately
+   holds it changes nothing, because the remedy is the same in all four cases.
+#}
+
+{% block main %}
+    <h1 class="text-2xl font-semibold tracking-tight">That link no longer works</h1>
+
+    <p class="mt-4 max-w-prose text-muted">
+        Password links last an hour and can be used once. Ask for another and we will send a new one.
+    </p>
+
+    <p class="mt-8">
+        <a href="{{ path('password_reset_request') }}"
+           class="rounded bg-ink px-4 py-2 text-white no-underline hover:bg-accent">
+            Ask for a new link
+        </a>
+    </p>
+{% endblock %}
