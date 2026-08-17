@@ -22,13 +22,13 @@
         </p>
 
         {#
-           The lead image. `onerror` hides it rather than leaving a broken-image
-           icon: FR-023 says a missing file must not stop the article rendering,
-           and until the upload feature exists the files these names point at may
-           genuinely not be there.
+           The lead image, served through the application from outside the web
+           root. `onerror` hides it rather than leaving a broken-image icon:
+           feature 002's FR-023 says a missing file must not stop the article
+           rendering, and a record can outlive its bytes.
         #}
         {% if article.featuredImage %}
-            <img src="{{ asset('uploads/' ~ article.featuredImage.filename) }}"
+            <img src="{{ path('media_show', { filename: article.featuredImage.filename }) }}"
                  alt="{{ article.featuredImage.altText }}"
                  class="mt-8 w-full rounded-lg"
                  loading="lazy"

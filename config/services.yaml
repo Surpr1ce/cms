@@ -16,6 +16,15 @@ parameters:
     # pagination boundaries are covered by unit tests that do not depend on it.
     app.articles_per_page: 20
 
+    # Where uploaded files live. Outside public/, which is the point: no web
+    # server configuration can serve these bytes directly, so nothing that ends
+    # up here will ever be executed.
+    app.upload_directory: '%kernel.project_dir%/var/uploads'
+
+    # 8 MB — comfortably a photograph, and small enough that a refusal is cheap.
+    # Stated in one place so the upload form can show the same number it enforces.
+    app.upload_max_bytes: 8388608
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -34,3 +43,11 @@ services:
     App\Service\Pagination\Paginator:
         arguments:
             $perPage: '%app.articles_per_page%'
+
+    App\Service\Media\MediaStorage:
+        arguments:
+            $directory: '%app.upload_directory%'
+
+    App\Service\Media\UploadedFileValidator:
+        arguments:
+            $maximumBytes: '%app.upload_max_bytes%'
