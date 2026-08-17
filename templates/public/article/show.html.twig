@@ -12,7 +12,7 @@
    entirely when there is no lead image, rather than pointing at nothing. #}
 {% block preview_image %}
     {%- if article.featuredImage -%}
-        {{ url('media_show', { filename: article.featuredImage.filename }) }}
+        {{ url('media_sized', { size: 'large', filename: article.featuredImage.filename }) }}
     {%- endif -%}
 {% endblock %}
 
@@ -38,16 +38,21 @@
 
         {#
            The lead image, served through the application from outside the web
-           root. `onerror` hides it rather than leaving a broken-image icon:
+           root, at the size this column shows it rather than the size it was
+           uploaded.
+
+           `data-hide-on-error` hides it instead of leaving a broken-image icon:
            feature 002's FR-023 says a missing file must not stop the article
-           rendering, and a record can outlive its bytes.
+           rendering, and a record can outlive its bytes. It was an `onerror`
+           attribute until feature 012 — which feature 008's content security
+           policy had silently been refusing to run since the day it shipped.
         #}
         {% if article.featuredImage %}
-            <img src="{{ path('media_show', { filename: article.featuredImage.filename }) }}"
+            <img src="{{ path('media_sized', { size: 'large', filename: article.featuredImage.filename }) }}"
                  alt="{{ article.featuredImage.altText }}"
                  class="mt-8 w-full rounded-lg"
                  loading="lazy"
-                 onerror="this.style.display='none'">
+                 data-hide-on-error>
         {% endif %}
 
         <div class="prose mt-8">

@@ -12,6 +12,7 @@ use App\Factory\PageFactory;
 use App\Repository\ArticleRepository;
 use App\Repository\MediaRepository;
 use App\Repository\PageRepository;
+use App\Service\Media\DerivedImages;
 use App\Service\Media\MediaDeleter;
 use App\Service\Media\MediaStorage;
 use Doctrine\ORM\EntityManagerInterface;
@@ -65,7 +66,10 @@ final class MediaDeleterTest extends KernelTestCase
         $storage = $container->get(MediaStorage::class);
         self::assertInstanceOf(MediaStorage::class, $storage);
 
-        $this->deleter = new MediaDeleter($entityManager, $articles, $pages, $storage);
+        $derived = $container->get(DerivedImages::class);
+        self::assertInstanceOf(DerivedImages::class, $derived);
+
+        $this->deleter = new MediaDeleter($entityManager, $articles, $pages, $storage, $derived);
     }
 
     public function testTheFileRecordIsRemoved(): void

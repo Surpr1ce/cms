@@ -149,8 +149,10 @@ final class MediaServingTest extends WebTestCase
         $crawler = $this->client->request('GET', '/articles/illustrated');
 
         self::assertResponseIsSuccessful();
+        // Since feature 012 the article asks for the size its column shows,
+        // not the size the photograph was uploaded at.
         self::assertSame(
-            '/media/'.$media->getFilename(),
+            '/media/large/'.$media->getFilename(),
             $crawler->filter('main img')->attr('src'),
         );
     }

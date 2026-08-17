@@ -93,8 +93,11 @@ final class PreviewMetadataTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/articles/an-article');
 
+        // The large size rather than the original, since feature 012. Whatever
+        // renders a preview scales the image down anyway; sending four thousand
+        // pixels for it to discard is the waste that feature exists to stop.
         self::assertSame(
-            'http://localhost/media/'.str_repeat('a', 32).'.jpg',
+            'http://localhost/media/large/'.str_repeat('a', 32).'.jpg',
             $this->property($crawler, 'og:image'),
         );
         self::assertSame('summary_large_image', $this->named($crawler, 'twitter:card'));

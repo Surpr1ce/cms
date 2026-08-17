@@ -47,7 +47,7 @@
                 <li class="flex flex-wrap items-start gap-4 rounded border border-rule p-4">
                     <div class="w-24 shrink-0">
                         {% if file.mimeType starts with 'image/' %}
-                            <img src="{{ path('media_show', { filename: file.filename }) }}"
+                            <img src="{{ path('media_sized', { size: 'thumbnail', filename: file.filename }) }}"
                                  alt="{{ file.altText }}"
                                  class="h-24 w-24 rounded object-cover"
                                  loading="lazy">
@@ -84,7 +84,7 @@
 
                     <form method="post"
                           action="{{ path('admin_media_delete', { id: file.id }) }}"
-                          onsubmit="return confirm('Delete this file? Any content using it will keep working, without the image.')">
+                          data-confirm="Delete this file? Any content using it will keep working, without the image.">
                         <input type="hidden" name="_token" value="{{ csrf_token('media-delete-' ~ file.id) }}">
                         <button type="submit" class="rounded border border-red-300 px-3 py-1 text-sm text-red-800 hover:bg-red-50">
                             Delete
