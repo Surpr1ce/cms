@@ -92,6 +92,25 @@ final readonly class SiteSearch
         return array_map($this->toHit(...), $rows);
     }
 
+    /**
+     * The few best matches, for a list offered while somebody is still typing.
+     *
+     * Deliberately `search()` with a small limit rather than a query of its own.
+     * A second SQL statement would be a second place the published-only rule is
+     * written, and this is already the one delivery on the site where that rule
+     * is a `WHERE` clause rather than a repository method that cannot return
+     * anything else. One statement, one rule, one thing to get wrong.
+     *
+     * The cost of going through the full query — summaries built from content —
+     * is paid on at most six rows.
+     *
+     * @return list<SearchHit>
+     */
+    public function suggest(SearchQuery $query, int $limit): array
+    {
+        return $this->search($query, $limit, 0);
+    }
+
     private function sql(): string
     {
         $article = sprintf(self::DOCUMENT, 'a');

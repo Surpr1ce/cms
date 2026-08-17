@@ -37,8 +37,9 @@ final class PageType extends AbstractType
             ->add('content', TextareaType::class, [
                 'label' => 'Body',
                 'required' => false,
-                'help' => 'Markup is allowed and is cleaned before it is stored.',
-                'attr' => ['rows' => 20, 'class' => 'font-mono'],
+                'help' => 'Format with the toolbar, or switch to Markup to write it by hand. Either way it is cleaned before it is stored.',
+                // See ArticleType for what this attribute does and why it is one.
+                'attr' => ['rows' => 20, 'class' => 'font-mono', 'data-markup-editor' => true],
             ])
             ->add('parent', EntityType::class, [
                 'label' => 'Parent page',

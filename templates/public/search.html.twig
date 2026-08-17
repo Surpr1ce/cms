@@ -29,7 +29,21 @@
         lead: 'Everything published on this site — articles and pages alike.',
     }, with_context = false) }}
 
-    {{ include('components/_search_form.html.twig', { query: query.text, autofocus: true }, with_context = false) }}
+    {#
+       The spacing lives here rather than in the component, so that the same
+       component can sit on the header line without pushing it down. `id` differs
+       from the header's for the same reason two boxes never appear together —
+       but a duplicate id is a bug waiting for the day somebody puts them both on
+       one screen.
+    #}
+    <div class="mt-6">
+        {{ include('components/_search_form.html.twig', {
+            query: query.text,
+            autofocus: true,
+            size: 'large',
+            id: 'search-page-query',
+        }, with_context = false) }}
+    </div>
 
     {% if query.isEmpty %}
         {# An invitation, not a result. Reading "nothing matched" when you have

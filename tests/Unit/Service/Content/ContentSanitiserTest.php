@@ -295,4 +295,55 @@ final class ContentSanitiserTest extends TestCase
             new ContentSanitiser()->sanitiseText('Symfony 8.1 arrives with a slimmer kernel'),
         );
     }
+
+    /**
+     * Everything the visual editor's toolbar can produce, and it has to survive
+     * untouched.
+     *
+     * This is the assertion that stops `assets/editor.js` and the allow-list
+     * above drifting apart. The toolbar exists to save an editor from typing
+     * tags; the moment it can produce something the sanitiser strips, it starts
+     * quietly discarding their work at the point of saving — formatting that
+     * looked right on the screen and is simply gone afterwards, with no message.
+     *
+     * `assertSame` rather than "contains": an element that survives as an
+     * element but loses an attribute, or is unwrapped into its contents, is the
+     * same failure in a less obvious form.
+     *
+     * Adding a button to the toolbar means adding its element here first. If
+     * this fails, the toolbar is wrong — not this test.
+     *
+     * The one case where what is stored is not byte for byte what the browser
+     * wrote is `<br>`, which the sanitiser serialises as `<br />`. That is the
+     * same element written the other legal way and renders identically, so it is
+     * stated as the expectation rather than smoothed over with a looser
+     * assertion that would also pass if the tag disappeared.
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function toolbarOutputProvider(): iterable
+    {
+        yield 'a paragraph, what Enter produces' => ['<p>An ordinary paragraph.</p>', '<p>An ordinary paragraph.</p>'];
+        yield 'a heading' => ['<h2>A heading</h2>', '<h2>A heading</h2>'];
+        yield 'a subheading' => ['<h3>A subheading</h3>', '<h3>A subheading</h3>'];
+        yield 'bold, as execCommand writes it' => ['<p>Some <b>bold</b> words.</p>', '<p>Some <b>bold</b> words.</p>'];
+        yield 'italic, as execCommand writes it' => ['<p>Some <i>italic</i> words.</p>', '<p>Some <i>italic</i> words.</p>'];
+        yield 'a bulleted list' => ['<ul><li>One</li><li>Two</li></ul>', '<ul><li>One</li><li>Two</li></ul>'];
+        yield 'a numbered list' => ['<ol><li>One</li><li>Two</li></ol>', '<ol><li>One</li><li>Two</li></ol>'];
+        yield 'a quotation' => ['<blockquote>Said elsewhere.</blockquote>', '<blockquote>Said elsewhere.</blockquote>'];
+        yield 'a code block' => ['<pre>composer qa</pre>', '<pre>composer qa</pre>'];
+        yield 'a link' => [
+            '<p>See <a href="https://example.com">the notes</a>.</p>',
+            '<p>See <a href="https://example.com">the notes</a>.</p>',
+        ];
+        yield 'a line break' => ['<p>One line<br>and another</p>', '<p>One line<br />and another</p>'];
+    }
+
+    #[DataProvider('toolbarOutputProvider')]
+    public function testEverythingTheVisualEditorCanProduceSurvivesSanitising(
+        string $written,
+        string $stored,
+    ): void {
+        self::assertSame($stored, new ContentSanitiser()->sanitiseMarkup($written));
+    }
 }
