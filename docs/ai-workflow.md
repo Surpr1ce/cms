@@ -46,15 +46,25 @@ against what was built.
 
 ### Project subagents
 
-Three agents in `.claude/agents/` encode this project's rules rather than generic
+Four agents in `.claude/agents/` encode this project's rules rather than generic
 best practice:
 
 - **`symfony-reviewer`** — reviews a change against `CLAUDE.md`, with the
   layering boundary as its first check.
+- **`architecture-guardian`** — guards the dependency direction and the design
+  principles `CLAUDE.md` states in prose. It runs *after*
+  `tests/Unit/Architecture/`, which asserts the mechanical half, and is told not
+  to re-report what those tests already cover: its job is the judgement a text
+  scan cannot make — a rule living in the wrong layer, an invariant bypassed, the
+  same rule written twice with nothing tying the copies together.
 - **`security-auditor`** — audits authentication, authorisation, uploads, and
   injection surfaces; writes reports to `docs/audits/`.
 - **`test-author`** — writes tests in the project's layout, using Foundry
   factories, covering failure paths rather than only the happy path.
+
+`CLAUDE.md`'s Verify phase asks for the architecture and security agents before a
+merge. The rule they exist under is that a gate proves the rules somebody thought
+to write down; the agents look for the ones nobody did.
 
 Each is instructed to report what it actually finds. An agent that reports a
 clean result on code it has not verified is worse than no agent, so the
