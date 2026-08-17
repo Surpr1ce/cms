@@ -327,6 +327,54 @@ final class SearchTest extends WebTestCase
     }
 
     /**
+     * The box describes a combobox whose list does not exist yet, and submits
+     * without one.
+     *
+     * Both halves matter. The attributes have to be here for
+     * `assets/suggestions.js` to attach to and for assistive technology to be
+     * told what kind of control this is; and the form has to work with none of
+     * that having run, which is what the second assertion is about — the same
+     * search, from the same box, with no script in sight.
+     */
+    public function testTheBoxIsAComboboxThatWorksWithoutOne(): void
+    {
+        ArticleFactory::new()->published()->create([
+            'title' => 'Hippopotamus season',
+            'slug' => 'hippopotamus-season',
+        ]);
+
+        $crawler = $this->client->request('GET', '/');
+        $input = $crawler->filter('form[data-search-suggest] input[name="q"]');
+
+        self::assertCount(1, $input);
+        self::assertSame('combobox', $input->attr('role'));
+        self::assertSame('false', $input->attr('aria-expanded'));
+        self::assertSame('off', $input->attr('autocomplete'));
+        // Nothing announces a list, because there is no list until a script
+        // makes one. A listbox promised and never delivered is worse than none.
+        self::assertCount(0, $crawler->filter('[role="listbox"]'));
+
+        $this->client->submit($crawler->filter('form[data-search-suggest]')->form(['q' => 'hippopotamus']));
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Hippopotamus season', $this->client->getCrawler()->filter('main')->text());
+    }
+
+    /**
+     * The header's box and the search page's are one component with a size. A
+     * shared id would be a bug the day somebody put both on one screen.
+     */
+    public function testTheTwoBoxesDoNotShareAnIdentifier(): void
+    {
+        $header = $this->client->request('GET', '/')->filter('input[name="q"]')->attr('id');
+        $page = $this->client->request('GET', '/search')->filter('input[name="q"]')->attr('id');
+
+        self::assertNotNull($header);
+        self::assertNotNull($page);
+        self::assertNotSame($header, $page);
+    }
+
+    /**
      * FR-013. A results page is generated from somebody else's words and has no
      * permanent existence; an index full of them is what a search engine calls
      * thin content.

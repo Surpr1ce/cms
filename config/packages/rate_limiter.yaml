@@ -13,6 +13,19 @@ framework:
             limit: 5
             interval: '1 hour'
 
+        # Suggestions fire while somebody types, so this is the one route on the
+        # site that is *meant* to be asked repeatedly — which makes it the
+        # cheapest one to abuse and the one that most needs a ceiling. Every
+        # request is a PostgreSQL full-text match over two tables.
+        #
+        # Sixty a minute is roughly one key every second held down for a minute,
+        # which nobody does; the browser debounces anyway, so a person searching
+        # normally spends a handful. Somebody scripting it finds a wall.
+        search_suggestions:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '1 minute'
+
 when@test:
     framework:
         rate_limiter:
@@ -28,3 +41,10 @@ when@test:
                 # this many times.
                 limit: 5
                 interval: '1 hour'
+
+            # Low enough that a test can reach it without sixty requests, which
+            # would make the suite slower to prove the same thing.
+            search_suggestions:
+                policy: 'sliding_window'
+                limit: 5
+                interval: '1 minute'

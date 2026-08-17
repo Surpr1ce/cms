@@ -40,8 +40,12 @@ final class ArticleType extends AbstractType
             ->add('content', TextareaType::class, [
                 'label' => 'Body',
                 'required' => false,
-                'help' => 'Markup is allowed and is cleaned before it is stored. Scripts and event handlers are removed.',
-                'attr' => ['rows' => 20, 'class' => 'font-mono'],
+                'help' => 'Format with the toolbar, or switch to Markup to write it by hand. Either way it is cleaned before it is stored: scripts and event handlers are removed.',
+                // `data-markup-editor` is what assets/editor.js looks for. It is
+                // an attribute rather than a different form type because the
+                // field genuinely is a text area — the editor writes into this
+                // one, and a browser that runs no script finds it unchanged.
+                'attr' => ['rows' => 20, 'class' => 'font-mono', 'data-markup-editor' => true],
             ])
             ->add('category', EntityType::class, [
                 'label' => 'Section',

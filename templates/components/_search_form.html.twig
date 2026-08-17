@@ -8,20 +8,66 @@
    appears as the characters somebody typed rather than as markup; FR-011 is
    about a reader being able to see and correct what they asked for, and it is
    also the reason a search box is a classic place to find an injection.
+
+   **One control, not two side by side.** The input and the button share an
+   outline, a height and a corner radius, and the focus ring is drawn around the
+   pair by `focus-within` — so tabbing to either lights the whole thing rather
+   than half of it. Before feature 018 these were two elements with a gap and
+   different radii, which read as two things that happened to be adjacent.
+
+   **Everything the suggestion list needs is here, and none of it does anything
+   without JavaScript.** `role="combobox"` and its attributes describe a control
+   whose list is empty until a script fills it; a browser with no script finds a
+   search form that submits, which is exactly what it found before. The list
+   element is written by `assets/suggestions.js` rather than sitting here empty,
+   so a reader is never told about a listbox that will not arrive.
+
+   Parameters: `query` (what to redisplay), `autofocus`, `size` — 'large' on the
+   search page, anything else in the header. No margin of its own: spacing is the
+   caller's business, and a component that carries `mt-6` cannot sit on a header
+   line without pushing it down.
 #}
-<form method="get" action="{{ path('search') }}" role="search" class="mt-6 flex gap-2">
-    <label for="site-search" class="sr-only">Search</label>
+{% set large = size|default('') == 'large' %}
 
-    <input type="search"
-           id="site-search"
-           name="q"
-           value="{{ query|default('') }}"
-           placeholder="Search"
-           maxlength="{{ constant('App\\Search\\SearchQuery::MAXIMUM_LENGTH') }}"
-           {% if autofocus|default(false) %}autofocus{% endif %}
-           class="w-full rounded border border-rule px-3 py-2">
+{# `relative` so the suggestion list can be positioned against this form. It is
+   here rather than added by the script, because a script that has to lay the
+   page out is a script whose absence changes the layout. #}
+<form method="get"
+      action="{{ path('search') }}"
+      role="search"
+      class="relative"
+      data-search-suggest
+      data-search-suggest-url="{{ path('search_suggestions') }}"
+      data-search-suggest-minimum="{{ constant('App\\Search\\SearchQuery::MINIMUM_LENGTH') }}">
+    <label for="{{ id|default('site-search') }}" class="sr-only">Search</label>
 
-    <button type="submit" class="rounded bg-ink px-4 py-2 text-white hover:bg-accent">
-        Search
-    </button>
+    <div class="flex items-stretch overflow-hidden rounded-md border border-rule bg-white
+                focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/25">
+        {#
+           `type="search"` rather than `text`: it gives a clear control in the
+           browsers that draw one, and Escape empties the field — which is why
+           the script below closes its list on Escape without also clearing.
+        #}
+        <input type="search"
+               id="{{ id|default('site-search') }}"
+               name="q"
+               value="{{ query|default('') }}"
+               placeholder="Search"
+               maxlength="{{ constant('App\\Search\\SearchQuery::MAXIMUM_LENGTH') }}"
+               autocomplete="off"
+               role="combobox"
+               aria-expanded="false"
+               aria-autocomplete="list"
+               {% if autofocus|default(false) %}autofocus{% endif %}
+               data-search-suggest-input
+               class="w-full min-w-0 border-0 bg-transparent text-ink outline-none placeholder:text-muted
+                      {{ large ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm' }}">
+
+        <button type="submit"
+                class="shrink-0 border-l border-rule font-medium text-muted transition-colors
+                       hover:bg-ink hover:text-white focus:bg-ink focus:text-white focus:outline-none
+                       {{ large ? 'px-5 text-base' : 'px-4 text-sm' }}">
+            Search
+        </button>
+    </div>
 </form>

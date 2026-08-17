@@ -451,6 +451,48 @@ then asserts neither is named anywhere in the response.
 opening the running site. The suite has never been wrong; it has never been the
 whole story either.
 
+### Feature 018 — writing and finding
+
+Three things somebody found by using the running site, which is where the last
+four rounds of real faults came from.
+
+**Suggestions while typing.** `/search/suggestions` answers at most six published
+articles and pages as JSON, and `assets/suggestions.js` turns the search box into
+a combobox — arrow keys, Enter, Escape, and an announcement of how many were
+found. It goes through `SiteSearch` rather than a query of its own, so the
+published-only rule stays written once; a word only a draft contains produces a
+response byte for byte identical to a word nothing contains. Rate-limited per
+client, because it is the one route on the site designed to be asked on every
+keystroke.
+
+**A visual editor for body markup.** A toolbar over a `contenteditable` surface
+that writes into the text area the field has always been. It carries no
+authority: the request is the same request, sanitised by the same
+`ContentSanitiser`, and nothing on the server can tell whether it was used.
+Reasoning in [ADR 14](adr/0014-a-visual-editor-that-carries-no-authority.md). The
+toolbar offers exactly what the allow-list permits, and a unit test runs every
+element it can produce through the sanitiser to keep the two from drifting apart.
+
+**The search box is one control.** It was an input and a button side by side with
+a gap, different heights and different corner radii. One outline now, one focus
+ring around the pair, and the same component at two sizes rather than two
+components that had drifted.
+
+**Turbo was the interesting part.** `@symfony/ux-turbo` is enabled in
+`assets/controllers.json` and nothing in seventeen features had depended on it,
+so nothing had noticed what it does: it replaces the whole of `<body>` on every
+visit and stores a snapshot before leaving. Both enhancements were written
+without that in mind and were wrong twice over — built once and thrown away on
+the next visit, and cached into the snapshot so going back restored a dead
+toolbar. Found by driving a real browser, not by the suite: **916 passing tests
+had nothing to say about it**, because none of them runs JavaScript.
+
+Also found on the way, and left alone: Turbo's own progress bar applies an inline
+style, which this site's content security policy forbids, so it is blocked and
+logs an error on every page. Nothing depends on Turbo here and turning it off
+would remove both the error and a good deal of subtlety — recorded rather than
+decided.
+
 ### After feature 017 — the reviewer and security passes
 
 Not a feature: the two reviews the constitution asks for at phase 4, run for the
