@@ -12,6 +12,7 @@ use App\Factory\PageFactory;
 use App\Repository\ArticleRepository;
 use App\Repository\MediaRepository;
 use App\Repository\PageRepository;
+use App\Service\Audit\AuditLog;
 use App\Service\Media\DerivedImages;
 use App\Service\Media\MediaDeleter;
 use App\Service\Media\MediaStorage;
@@ -69,7 +70,7 @@ final class MediaDeleterTest extends KernelTestCase
         $derived = $container->get(DerivedImages::class);
         self::assertInstanceOf(DerivedImages::class, $derived);
 
-        $this->deleter = new MediaDeleter($entityManager, $articles, $pages, $storage, $derived);
+        $this->deleter = new MediaDeleter($entityManager, $articles, $pages, $storage, $derived, $this->auditLog());
     }
 
     public function testTheFileRecordIsRemoved(): void
@@ -160,5 +161,20 @@ final class MediaDeleterTest extends KernelTestCase
         MediaFactory::createMany(3);
 
         self::assertSame(3, $this->media->countUploadedBy($uploader));
+    }
+
+    /**
+     * The real service, from the container.
+     *
+     * A double would prove that the deleter calls something; the point of
+     * these tests is what is left behind afterwards, and an entry in the
+     * database is part of that.
+     */
+    private function auditLog(): AuditLog
+    {
+        $audit = self::getContainer()->get(AuditLog::class);
+        self::assertInstanceOf(AuditLog::class, $audit);
+
+        return $audit;
     }
 }

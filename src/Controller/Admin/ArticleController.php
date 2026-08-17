@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\Article;
+use App\Entity\AuditAction;
 use App\Entity\User;
 use App\Exception\ContentWasChangedElsewhere;
 use App\Exception\DomainException;
@@ -12,6 +13,7 @@ use App\Form\ArticleType;
 use App\Form\Command\ArticleCommand;
 use App\Repository\ArticleRepository;
 use App\Security\ArticleVoter;
+use App\Service\Audit\AuditLog;
 use App\Service\Content\ArticleEditor;
 use App\Service\Content\PublicationService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -45,6 +47,7 @@ final class ArticleController extends AbstractController
         private readonly ArticleEditor $editor,
         private readonly PublicationService $publication,
         private readonly EntityManagerInterface $entityManager,
+        private readonly AuditLog $audit,
     ) {
     }
 
@@ -160,6 +163,11 @@ final class ArticleController extends AbstractController
 
         $this->entityManager->remove($article);
         $this->entityManager->flush();
+
+        // The title is read above, before the row goes. Afterwards there is
+        // nothing left to name it with, which is exactly the case the log
+        // exists for — somebody asking a week later what used to be here.
+        $this->audit->record(AuditAction::ContentDeleted, $title);
 
         $this->addFlash('success', sprintf('“%s” was deleted.', $title));
 

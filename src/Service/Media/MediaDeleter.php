@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Media;
 
+use App\Entity\AuditAction;
 use App\Entity\Media;
 use App\Repository\ArticleRepository;
 use App\Repository\PageRepository;
+use App\Service\Audit\AuditLog;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -29,11 +31,15 @@ final readonly class MediaDeleter
         private PageRepository $pages,
         private MediaStorage $storage,
         private DerivedImages $derived,
+        private AuditLog $audit,
     ) {
     }
 
     public function delete(Media $media): void
     {
+        // The name a person would recognise, read before the row goes.
+        $name = $media->getOriginalName();
+
         foreach ($this->articles->findByFeaturedImage($media) as $article) {
             $article->setFeaturedImage(null);
         }
@@ -58,5 +64,7 @@ final readonly class MediaDeleter
         // address these again — they would sit in the directory forever, and
         // nobody would know what they were.
         $this->derived->removeAllFor($media);
+
+        $this->audit->record(AuditAction::FileDeleted, $name);
     }
 }

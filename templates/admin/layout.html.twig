@@ -32,6 +32,15 @@
                     {% if is_granted('MANAGE_TAXONOMY') %}
                         <a href="{{ path('admin_manage') }}" class="text-white/80 no-underline hover:text-white">Manage</a>
                     {% endif %}
+
+                    {# Behind the same capability that governs who may create and
+                       remove accounts. Reading who did what is the same kind of
+                       authority as deciding who may do it. #}
+                    {% if is_granted('MANAGE_ACCOUNTS') %}
+                        <a href="{{ path('admin_audit_log') }}" class="text-white/80 no-underline hover:text-white">Log</a>
+                    {% endif %}
+
+                    <a href="{{ path('admin_account') }}" class="text-white/80 no-underline hover:text-white">Account</a>
                     <a href="{{ path('home') }}" class="text-white/80 no-underline hover:text-white">View site</a>
                 </nav>
 
