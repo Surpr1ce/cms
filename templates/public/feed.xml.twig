@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+{#
+   Atom, and the declaration is the first byte for the same reason as in the
+   sitemap.
+
+   Two things here are load-bearing and not decoration:
+
+   `summarise()` on every body. An article's markup cannot be dropped into an
+   XML document as it stands — an unclosed tag makes the whole feed unparseable,
+   and one bad article would take every other entry with it. The summary is
+   plain text, and Twig escapes it, so nothing an author can type can break the
+   document.
+
+   `date('c')` throughout. Atom requires an unambiguous instant, which means a
+   time zone offset; a date without one is a date somebody has to guess at.
+#}
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>{{ site_name }}</title>
+    <link rel="alternate" type="text/html" href="{{ url('home') }}"/>
+    <link rel="self" type="application/atom+xml" href="{{ url('feed') }}"/>
+
+    {# The identifier has to be permanent, so it is the site's address rather
+       than anything derived from content. #}
+    <id>{{ url('home') }}</id>
+    <updated>{{ updatedAt|date('c') }}</updated>
+
+{% for article in articles %}
+    <entry>
+        <title>{{ article.title }}</title>
+        <link rel="alternate" type="text/html" href="{{ url('article_show', { slug: article.slug }) }}"/>
+        <id>{{ url('article_show', { slug: article.slug }) }}</id>
+        <published>{{ article.publishedAt|date('c') }}</published>
+        <updated>{{ article.updatedAt|date('c') }}</updated>
+        <author>
+            <name>{{ article.author.displayName }}</name>
+        </author>
+{% if article.category %}
+        <category term="{{ article.category.slug }}" label="{{ article.category.name }}"/>
+{% endif %}
+        {# The excerpt when the author wrote one, the body when they did not.
+           Both go through the same filter, because an excerpt can carry markup
+           too. #}
+        <summary type="text">{{ (article.excerpt ?: article.content)|summarise }}</summary>
+    </entry>
+{% endfor %}
+</feed>

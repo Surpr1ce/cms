@@ -6,6 +6,53 @@
         <title>{% block title %}{{ site_name }}{% endblock %}</title>
         {% block meta %}
             <meta name="description" content="{% block meta_description %}{% endblock %}">
+
+            {#
+               Preview and canonical metadata, built here rather than passed
+               down by every controller.
+
+               `block()` reads the title and description this page already
+               declares, so a template gains a working preview by doing nothing
+               and cannot acquire a broken one by forgetting. That is the whole
+               reason this sits in the base layout: FR-012 says *every* public
+               page, and "every" is not a thing to be maintained by hand across
+               a dozen templates.
+
+               A page with an image overrides `preview_image` with an absolute
+               address. One without leaves it empty, and the tag is omitted
+               rather than pointing at nothing.
+            #}
+            {% set preview_title = block('title')|striptags|trim %}
+            {# The site's own name is the last resort, so that a page which
+               declares no description of its own still previews as something
+               rather than as a blank. FR-012 says every page, and a template
+               added later must not be able to break that by omission. #}
+            {% set preview_description = block('meta_description')|striptags|trim ?: site_name %}
+
+            {# Declares the block and captures it in one go. Writing the block
+               on its own line would define it and *print* it, putting an image
+               address in the middle of the head as text. #}
+            {% set preview_image %}{% block preview_image %}{% endblock %}{% endset %}
+            {% set preview_image = preview_image|trim %}
+
+            <link rel="canonical" href="{{ canonical_url() }}">
+
+            <meta property="og:type" content="{% block preview_type %}website{% endblock %}">
+            <meta property="og:site_name" content="{{ site_name }}">
+            <meta property="og:title" content="{{ preview_title }}">
+            <meta property="og:description" content="{{ preview_description }}">
+            <meta property="og:url" content="{{ canonical_url() }}">
+            {% if preview_image %}
+                <meta property="og:image" content="{{ preview_image }}">
+                <meta name="twitter:card" content="summary_large_image">
+            {% else %}
+                <meta name="twitter:card" content="summary">
+            {% endif %}
+
+            <link rel="alternate"
+                  type="application/atom+xml"
+                  title="{{ site_name }}"
+                  href="{{ url('feed') }}">
         {% endblock %}
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.05em%22 font-size=%22104%22>&#9679;</text></svg>">
 

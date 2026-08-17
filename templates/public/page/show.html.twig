@@ -1,7 +1,15 @@
 {% extends 'public/layout.html.twig' %}
 
 {% block title %}{{ page_content.title }} — {{ site_name }}{% endblock %}
-{% block meta_description %}{{ page_content.excerpt|default('')|striptags }}{% endblock %}
+{% block meta_description %}{{ (page_content.excerpt ?: page_content.content)|summarise }}{% endblock %}
+
+{% block preview_image %}
+    {%- if page_content.featuredImage -%}
+        {{ url('media_show', { filename: page_content.featuredImage.filename }) }}
+    {%- endif -%}
+{% endblock %}
+
+{% block preview_type %}article{% endblock %}
 
 {% block main %}
     <article>

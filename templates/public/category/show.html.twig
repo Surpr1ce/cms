@@ -1,7 +1,7 @@
 {% extends 'public/layout.html.twig' %}
 
 {% block title %}{{ category.name }} — {{ site_name }}{% endblock %}
-{% block meta_description %}{{ category.description|default('')|striptags }}{% endblock %}
+{% block meta_description %}{{ category.description|summarise ?: 'Articles in ' ~ category.name ~ ' on ' ~ site_name ~ '.' }}{% endblock %}
 
 {% block main %}
     <header class="border-b border-rule pb-6">

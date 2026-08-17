@@ -1,6 +1,7 @@
 {% extends 'public/layout.html.twig' %}
 
 {% block title %}{{ tag.name }} — {{ site_name }}{% endblock %}
+{% block meta_description %}Articles on {{ site_name }} tagged “{{ tag.name }}”.{% endblock %}
 
 {% block main %}
     <header class="border-b border-rule pb-6">

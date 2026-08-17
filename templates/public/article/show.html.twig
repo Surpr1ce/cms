@@ -1,7 +1,22 @@
 {% extends 'public/layout.html.twig' %}
 
 {% block title %}{{ article.title }} — {{ site_name }}{% endblock %}
-{% block meta_description %}{{ article.excerpt|default('')|striptags }}{% endblock %}
+{#
+   The excerpt when the author wrote one, the body when they did not. Through
+   `summarise` either way: an excerpt can carry markup too, and a description
+   containing a tag or a newline is a broken attribute.
+#}
+{% block meta_description %}{{ (article.excerpt ?: article.content)|summarise }}{% endblock %}
+
+{# Absolute, because whatever renders a preview is not this site. Omitted
+   entirely when there is no lead image, rather than pointing at nothing. #}
+{% block preview_image %}
+    {%- if article.featuredImage -%}
+        {{ url('media_show', { filename: article.featuredImage.filename }) }}
+    {%- endif -%}
+{% endblock %}
+
+{% block preview_type %}article{% endblock %}
 
 {% block main %}
     <article>
