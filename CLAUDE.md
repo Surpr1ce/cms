@@ -145,9 +145,15 @@ exists (`feat(article): add publishing workflow (specs/003-article-publishing)`)
 composer install
 php bin/console doctrine:database:create
 php bin/console doctrine:migrations:migrate
-php bin/console doctrine:fixtures:load
-symfony serve            # or: php -S localhost:8000 -t public
+composer demo:data       # loads the fixtures — REPLACES what is in the dev database
+composer serve           # http://127.0.0.1:8000
+composer serve:prod      # the same site as a visitor gets it: no toolbar, compiled assets
 ```
+
+Both `serve` scripts run through `tools/serve-router.php`, which hands existing
+files back to the built-in server and everything else to Symfony. Without it,
+pretty addresses 404 or the compiled assets do — the two halves fail in opposite
+environments, so check a change to it against both.
 
 PostgreSQL runs natively on this machine by default. Docker is also available and
 `compose.yaml` is verified — `docker compose up -d database` works — but the

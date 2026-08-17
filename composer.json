@@ -107,7 +107,20 @@
             "@rector:check",
             "@phpstan",
             "@test"
-        ]
+        ],
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "php -S 127.0.0.1:8000 -t public tools/serve-router.php"
+        ],
+        "serve:prod": [
+            "Composer\\Config::disableProcessTimeout",
+            "@putenv APP_ENV=prod",
+            "@putenv APP_DEBUG=0",
+            "php bin/console cache:clear",
+            "php bin/console asset-map:compile",
+            "php -d variables_order=EGPCS -S 127.0.0.1:8000 -t public tools/serve-router.php"
+        ],
+        "demo:data": "php bin/console doctrine:fixtures:load --no-interaction"
     },
     "scripts-descriptions": {
         "phpstan": "Run static analysis at level max",
@@ -117,7 +130,10 @@
         "rector:check": "Report available refactorings without applying",
         "test": "Run the PHPUnit test suite",
         "test:coverage": "Run tests and generate an HTML coverage report",
-        "qa": "Run the full quality gate: style, refactoring, static analysis, tests"
+        "qa": "Run the full quality gate: style, refactoring, static analysis, tests",
+        "serve": "Serve the site at http://127.0.0.1:8000 in the development environment",
+        "serve:prod": "Serve it as a visitor would see it: no debug toolbar, compiled assets, warm cache",
+        "demo:data": "REPLACES the development database contents with the demo fixtures"
     },
     "conflict": {
         "symfony/symfony": "*"

@@ -119,8 +119,32 @@ composer qa                                  # style, Rector, PHPStan, tests
 ## Run the site
 
 ```bash
-symfony serve                # or: php -S localhost:8000 -t public
+composer serve               # development: http://127.0.0.1:8000, debug toolbar, no cache to warm
+composer serve:prod          # what a visitor gets: no toolbar, compiled assets, warm cache
+composer demo:data           # reload the fixtures — REPLACES the development database contents
 ```
+
+Both serve scripts use the built-in PHP server through
+[`tools/serve-router.php`](../tools/serve-router.php), and three details in them
+were each found the hard way rather than reasoned out, so leave them alone unless
+you have checked the replacement in **both** environments:
+
+- **The router exists because neither half works without it.** With no router
+  script, `/articles/something` is a 404 before Symfony sees it; with
+  `public/index.php` as the router, every compiled asset under `/assets/` goes
+  through Symfony too — which is invisible in development, where AssetMapper
+  serves those files through a controller, and answers 500 for every one of them
+  in production.
+- **`Composer\Config::disableProcessTimeout`** — Composer kills a script after
+  300 seconds, so without it the server stops five minutes in, which is a
+  memorable thing to discover during a demonstration.
+- **`-d variables_order=EGPCS`** on the production script. Symfony reads `APP_ENV`
+  from `$_SERVER`/`$_ENV`, and the built-in server does not put the process
+  environment there by default — so without it the "production" server quietly
+  serves the development environment, debug toolbar and all.
+
+`symfony serve` works too if you have the Symfony CLI, and needs none of the
+above; it is simply not installed on this machine.
 
 **What you will see depends on how much has been built.** Check
 [`status.md`](status.md) before assuming a blank page is a fault — as of feature

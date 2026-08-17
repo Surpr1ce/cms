@@ -11,8 +11,9 @@ as such at the top of the file.
 Nineteen features — eighteen on `master`, and feature 019 on its branch until it
 merges — `composer qa` green after each and CI green since feature 011.
 **1059 tests, 3308 assertions**, twenty-seven of which assert the architecture
-itself rather than any behaviour, plus twenty browser checks that `composer qa`
-deliberately does not run.
+itself rather than any behaviour, plus twenty-one browser checks that `composer qa`
+deliberately does not run — and which now pass against a production build as well
+as a development one.
 
 A reader can find the site, read it, search it and subscribe to it. An editor can
 write, publish, upload, and get back in after forgetting their password. An
@@ -645,6 +646,34 @@ whose absence meant deleting it left the suite green; the reset link's
 attacker's host on purpose; and `/admin/log` — the sixth paginated screen, missing
 from the provider whose own docblock says a provider exists so nobody forgets one
 — joined `ListingsArePaginatedTest`.
+
+### After the release — running it the way somebody else will see it
+
+`composer serve` and `composer serve:prod` exist because the answer to "how do I
+start it" was a command somebody had to remember rather than one the project
+knew. Adding them turned up three faults, none of which the test suite could have
+caught and all of which would have surfaced in front of an audience:
+
+- **The server stopped after exactly five minutes.** Composer kills a script at a
+  300-second process timeout. `Composer\Config::disableProcessTimeout` is the
+  documented answer, and the symptom — a site that works, demonstrates fine, and
+  is dead when you come back to it — is one nobody would diagnose live.
+- **"Production mode" was quietly serving development.** Symfony reads `APP_ENV`
+  from `$_SERVER`/`$_ENV`, and PHP's built-in server does not put the process
+  environment there; `-d variables_order=EGPCS` fixes it. The debug toolbar on the
+  page was the only sign.
+- **Every compiled asset answered 500**, so the production build loaded with no
+  JavaScript at all. Using `public/index.php` as the router sends static files
+  through Symfony, which has no route for them once AssetMapper's development
+  controller is gone. `tools/serve-router.php` hands existing files back to the
+  server and everything else to the application.
+
+`tools/browser-check.mjs` found the third one and was wrong about it: it signed in
+with `form.submit()`, which does not fire the `submit` event that Symfony's
+stateless CSRF controller listens for. Development tolerated that and production
+refused it, so the tool could only ever check the environment nobody visits. It
+clicks the button now, asserts that signing in worked rather than assuming it, and
+passes twenty-one checks against both environments.
 
 ### After feature 017 — the reviewer and security passes
 

@@ -283,16 +283,31 @@ check('coming back offers the same text again', await evaluate(
 
 console.log('\nVisual editor');
 
+/*
+ * Signing in by *clicking the button*, not by calling form.submit().
+ *
+ * config/packages/csrf.yaml turns on stateless CSRF, whose token is written into
+ * the field by Symfony's own Stimulus controller when the form's `submit` event
+ * fires. `form.submit()` does not fire that event — so the placeholder value is
+ * posted, the token is refused, and everything after this lands back on the login
+ * page. It went unnoticed because it happens to be tolerated in the development
+ * environment and not in production: this file could check a dev site and not the
+ * thing a visitor would get, which is half of what it exists for.
+ */
 await goTo('/login');
 await evaluate(`
     (() => {
         document.querySelector('input[name="_username"]').value = 'admin@example.com';
         document.querySelector('input[name="_password"]').value = 'development-only';
-        document.querySelector('form[action="/login"]').submit();
+        document.querySelector('form[action="/login"] [type="submit"]').click();
         return true;
     })()
 `);
 await sleep(SETTLE_MS);
+
+check('signing in works', await evaluate(
+    `document.querySelector('[role="alert"]')?.textContent?.trim() ?? 'signed in'`,
+), 'signed in');
 
 await goTo('/admin/articles/new');
 
