@@ -40,8 +40,16 @@ final class ArticleController extends AbstractController
             throw $this->createNotFoundException();
         }
 
+        // Where a reader goes next. Both come from published-only repository
+        // methods, so an article a reader may not open cannot be recommended to
+        // them — the same structural guarantee every other public read has.
+        $neighbours = $this->articles->findPublishedNeighboursOf($article);
+
         return $this->render('public/article/show.html.twig', [
             'article' => $article,
+            'related' => $this->articles->findPublishedRelatedTo($article),
+            'previous' => $neighbours['previous'],
+            'next' => $neighbours['next'],
         ]);
     }
 }

@@ -6,6 +6,14 @@ namespace App\Twig;
 
 use App\Service\Pagination\Paginator;
 use App\Service\Seo\PlainText;
+
+use function ceil;
+use function max;
+
+use const PHP_INT_MAX;
+
+use function str_word_count;
+
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Twig\Extension\AbstractExtension;
@@ -35,7 +43,26 @@ final class SeoExtension extends AbstractExtension
     {
         return [
             new TwigFilter('summarise', $this->plainText->summarise(...)),
+            new TwigFilter('reading_time', $this->readingTime(...)),
         ];
+    }
+
+    /**
+     * Roughly how long a body takes to read, in whole minutes.
+     *
+     * Two hundred words a minute, which is the low end of the usual estimates —
+     * a reader who finishes early is pleased, and one who runs over feels lied
+     * to. Never zero: "less than a minute" is what a short piece is, and "0 min"
+     * reads as a fault.
+     *
+     * Markup is stripped first, so an article full of links does not read as
+     * twice its length.
+     */
+    public function readingTime(?string $html): int
+    {
+        $words = str_word_count($this->plainText->summarise($html, PHP_INT_MAX));
+
+        return max(1, (int) ceil($words / 200));
     }
 
     /**

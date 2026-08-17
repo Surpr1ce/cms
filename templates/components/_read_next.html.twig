@@ -1,0 +1,67 @@
+{#
+   Where a reader goes after finishing.
+
+   Two things, and they answer different questions. "Related" is *more like
+   this* — same section, or sharing a label, ordered by how much it shares.
+   "Older / Newer" is *the rest of the site*, in order, for somebody who wants to
+   keep reading rather than to read about the same thing.
+
+   Until feature 017 an article ended and that was it: a reader who reached the
+   bottom had the browser's back button and nothing else. That is the single
+   biggest thing a site can do to be read more, and it cost two queries.
+
+   Everything here comes from published-only repository methods, so nothing that
+   is not readable can be recommended.
+#}
+{% if related is not empty or previous or next %}
+    <nav class="mt-12 border-t border-rule pt-8" aria-label="Read next">
+        {% if related is not empty %}
+            <h2 class="text-sm font-semibold tracking-tight text-ink">More like this</h2>
+
+            <ul class="mt-3 space-y-3">
+                {% for article in related %}
+                    <li>
+                        <a href="{{ path('article_show', { slug: article.slug }) }}"
+                           class="font-medium text-ink no-underline hover:underline">
+                            {{ article.title }}
+                        </a>
+
+                        <span class="block text-sm text-muted">
+                            {% if article.publishedAt %}
+                                {{ article.publishedAt|date('j F Y') }}
+                                <span aria-hidden="true">·</span>
+                            {% endif %}
+                            {{ article.content|reading_time }} min read
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if previous or next %}
+            <div class="mt-8 flex flex-wrap justify-between gap-4 border-t border-rule pt-6 text-sm">
+                {% if previous %}
+                    <a href="{{ path('article_show', { slug: previous.slug }) }}"
+                       class="max-w-[45%] text-accent no-underline hover:underline"
+                       rel="prev">
+                        <span class="block text-muted">&larr; Older</span>
+                        {{ previous.title }}
+                    </a>
+                {% else %}
+                    <span></span>
+                {% endif %}
+
+                {% if next %}
+                    <a href="{{ path('article_show', { slug: next.slug }) }}"
+                       class="max-w-[45%] text-right text-accent no-underline hover:underline"
+                       rel="next">
+                        <span class="block text-muted">Newer &rarr;</span>
+                        {{ next.title }}
+                    </a>
+                {% else %}
+                    <span></span>
+                {% endif %}
+            </div>
+        {% endif %}
+    </nav>
+{% endif %}

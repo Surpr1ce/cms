@@ -18,6 +18,19 @@
 
 {% block preview_type %}article{% endblock %}
 
+{% block breadcrumbs %}
+    {% set trail = [] %}
+    {% if article.category %}
+        {% set trail = trail|merge([{
+            label: article.category.name,
+            path: path('category_show', { slug: article.category.slug }),
+        }]) %}
+    {% endif %}
+    {% set trail = trail|merge([{ label: article.title }]) %}
+
+    {{ include('components/_breadcrumbs.html.twig', { trail: trail }, with_context = false) }}
+{% endblock %}
+
 {% block main %}
     <article>
         <h1 class="text-3xl font-semibold tracking-tight">{{ article.title }}</h1>
@@ -28,6 +41,8 @@
                 <span aria-hidden="true">·</span>
             {% endif %}
             {{ article.author.displayName }}
+            <span aria-hidden="true">·</span>
+            {{ article.content|reading_time }} min read
             {% if article.category %}
                 <span aria-hidden="true">·</span>
                 <a href="{{ path('category_show', { slug: article.category.slug }) }}" class="text-muted hover:text-ink">
@@ -61,4 +76,10 @@
 
         {{ include('components/_tag_list.html.twig', { tags: article.tags }, with_context = false) }}
     </article>
+
+    {{ include('components/_read_next.html.twig', {
+        related: related,
+        previous: previous,
+        next: next,
+    }, with_context = false) }}
 {% endblock %}

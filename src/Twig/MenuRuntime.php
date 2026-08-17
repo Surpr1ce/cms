@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Entity\Category;
 use App\Entity\Page;
+use App\Repository\CategoryRepository;
 use App\Repository\PageRepository;
 use Twig\Extension\RuntimeExtensionInterface;
 
@@ -26,8 +28,15 @@ final class MenuRuntime implements RuntimeExtensionInterface
      */
     private ?array $menu = null;
 
-    public function __construct(private readonly PageRepository $pages)
-    {
+    /**
+     * @var list<Category>|null
+     */
+    private ?array $sections = null;
+
+    public function __construct(
+        private readonly PageRepository $pages,
+        private readonly CategoryRepository $categories,
+    ) {
     }
 
     /**
@@ -83,5 +92,23 @@ final class MenuRuntime implements RuntimeExtensionInterface
         }
 
         return $this->menu = $menu;
+    }
+
+    /**
+     * Top-level sections, for the site navigation.
+     *
+     * Top-level only, deliberately: a nested section belongs on its parent's
+     * page, and a header that lists every section on a site with forty of them
+     * is a header nobody reads.
+     *
+     * Sections have no publication state of their own — they are listings, and
+     * an empty one renders as an empty page rather than a 404, which feature 002
+     * decided. So there is nothing to filter and nothing that can leak.
+     *
+     * @return list<Category>
+     */
+    public function sections(): array
+    {
+        return $this->sections ??= $this->categories->findChildrenOf(null);
     }
 }

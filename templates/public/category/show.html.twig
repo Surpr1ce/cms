@@ -3,6 +3,19 @@
 {% block title %}{{ category.name }} — {{ site_name }}{% endblock %}
 {% block meta_description %}{{ category.description|summarise ?: 'Articles in ' ~ category.name ~ ' on ' ~ site_name ~ '.' }}{% endblock %}
 
+{% block breadcrumbs %}
+    {% set trail = [] %}
+    {% if category.parent %}
+        {% set trail = trail|merge([{
+            label: category.parent.name,
+            path: path('category_show', { slug: category.parent.slug }),
+        }]) %}
+    {% endif %}
+    {% set trail = trail|merge([{ label: category.name }]) %}
+
+    {{ include('components/_breadcrumbs.html.twig', { trail: trail }, with_context = false) }}
+{% endblock %}
+
 {% block main %}
     <header class="border-b border-rule pb-6">
         <h1 class="text-2xl font-semibold tracking-tight">{{ category.name }}</h1>
