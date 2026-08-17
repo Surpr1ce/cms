@@ -10,6 +10,7 @@ use App\Entity\ContentStatus;
 use App\Entity\Media;
 use App\Entity\Tag;
 use App\Entity\User;
+use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -131,6 +132,93 @@ final class ArticleRepository extends ServiceEntityRepository implements Slugged
     }
 
     /**
+     * Published articles a reader who just finished this one might want next.
+     *
+     * Same section, or sharing at least one label. Ordered by how much they
+     * share, then by recency — an article in the same section *and* carrying two
+     * of the same labels comes before one that merely shares a section.
+     *
+     * Through `publishedQuery()` like everything else here, so a draft cannot be
+     * recommended even by accident. A reader arriving at an article they may see
+     * must not be handed a link to one they may not.
+     *
+     * @return list<Article>
+     */
+    public function findPublishedRelatedTo(Article $article, int $limit = 3): array
+    {
+        $labelIds = [];
+
+        foreach ($article->getTags() as $tag) {
+            $labelIds[] = $tag->getId();
+        }
+
+        $section = $article->getCategory();
+
+        // Nothing to be related by. Returning the most recent articles instead
+        // would be a recommendation dressed up as a relationship.
+        if (!$section instanceof Category && [] === $labelIds) {
+            return [];
+        }
+
+        // Nothing is join-fetched here, unlike the listing queries. Counting
+        // shared labels needs a GROUP BY, and PostgreSQL will not let a query
+        // select every column of a joined author and section while grouping by
+        // the article — grouping by an article's primary key covers that
+        // article's own columns and nothing else. The list this feeds shows a
+        // title, a date and a reading time, so there is nothing else to fetch.
+        $query = $this->publishedQuery()
+            ->leftJoin(self::ALIAS.'.tags', 'tag')
+            ->andWhere(self::ALIAS.'.id != :self')
+            ->setParameter('self', $article->getId())
+            ->groupBy(self::ALIAS.'.id')
+            ->setMaxResults($limit);
+
+        $conditions = [];
+
+        if ($section instanceof Category) {
+            $conditions[] = self::ALIAS.'.category = :section';
+            $query->setParameter('section', $section);
+        }
+
+        if ([] !== $labelIds) {
+            $conditions[] = 'tag.id IN (:labels)';
+            $query->setParameter('labels', $labelIds);
+        }
+
+        $query->andWhere($query->expr()->orX(...$conditions));
+
+        // Most shared labels first. `publishedQuery()` has already ordered by
+        // date, and this puts relevance ahead of it while keeping the date as
+        // the tiebreak.
+        $query
+            ->addSelect('COUNT(tag.id) AS HIDDEN shared')
+            ->orderBy('shared', 'DESC')
+            ->addOrderBy(self::ALIAS.'.publishedAt', 'DESC')
+            ->addOrderBy(self::ALIAS.'.id', 'DESC');
+
+        return array_values($query->getQuery()->getResult());
+    }
+
+    /**
+     * The published articles either side of this one by publication date.
+     *
+     * For the "what next" controls at the foot of an article. Two queries rather
+     * than a window function, because two indexed lookups of one row each are
+     * cheaper than ranking the table and are the same in every database.
+     *
+     * @return array{previous: Article|null, next: Article|null} previous is
+     *                                                           older, next is newer — the direction a reader means, not the direction
+     *                                                           the list is sorted in
+     */
+    public function findPublishedNeighboursOf(Article $article): array
+    {
+        return [
+            'previous' => $this->neighbour($article, '<', 'DESC'),
+            'next' => $this->neighbour($article, '>', 'ASC'),
+        ];
+    }
+
+    /**
      * The article behind a public address, with its section, labels and lead
      * image loaded.
      *
@@ -221,6 +309,26 @@ final class ArticleRepository extends ServiceEntityRepository implements Slugged
     public function countByAuthor(User $author): int
     {
         return $this->count(['author' => $author]);
+    }
+
+    private function neighbour(Article $article, string $comparison, string $direction): ?Article
+    {
+        $publishedAt = $article->getPublishedAt();
+
+        if (!$publishedAt instanceof DateTimeImmutable) {
+            return null;
+        }
+
+        $result = $this->publishedQuery()
+            ->andWhere(self::ALIAS.'.publishedAt '.$comparison.' :at')
+            ->setParameter('at', $publishedAt)
+            ->orderBy(self::ALIAS.'.publishedAt', $direction)
+            ->addOrderBy(self::ALIAS.'.id', $direction)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $result instanceof Article ? $result : null;
     }
 
     /**

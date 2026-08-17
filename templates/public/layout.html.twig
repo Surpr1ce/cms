@@ -7,34 +7,121 @@
 #}
 
 {% block body %}
+    {#
+       A skip link, first in the document and visible only when focused.
+       Somebody using a keyboard would otherwise tab through the whole header —
+       menu, sections, search — on every page before reaching what they came for.
+    #}
+    <a href="#main"
+       class="sr-only rounded bg-ink px-4 py-2 text-white focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50">
+        Skip to the content
+    </a>
+
     <div class="flex min-h-full flex-col">
         <header class="border-b border-rule">
-            <div class="mx-auto flex max-w-3xl flex-wrap items-baseline gap-x-6 gap-y-2 px-5 py-5">
-                <a href="{{ path('home') }}" class="text-lg font-semibold tracking-tight text-ink no-underline">
-                    {{ site_name }}
-                </a>
+            <div class="mx-auto max-w-3xl px-5 py-5">
+                <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
+                    <a href="{{ path('home') }}" class="text-lg font-semibold tracking-tight text-ink no-underline">
+                        {{ site_name }}
+                    </a>
 
-                {{ include('components/_menu.html.twig', { pages: public_menu() }, with_context = false) }}
-
-                {# FR-012: on every page, because a search box a reader has to
-                   navigate to is a search box nobody uses. #}
-                <div class="w-full max-w-xs">
-                    {{ include(
-                        'components/_search_form.html.twig',
-                        { query: app.request.query.get('q'), autofocus: false },
-                        with_context = false
-                    ) }}
+                    <div class="w-full max-w-xs">
+                        {{ include(
+                            'components/_search_form.html.twig',
+                            { query: app.request.query.get('q'), autofocus: false },
+                            with_context = false
+                        ) }}
+                    </div>
                 </div>
+
+                {#
+                   Sections and pages, on one line, both from the same place.
+                   Before feature 017 the header carried pages only, so the site's
+                   own structure — the sections articles are filed under — could
+                   be reached from nowhere except the small link under an
+                   article's title.
+                #}
+                {% set sections = public_sections() %}
+                {% set menu = public_menu() %}
+
+                {% if sections is not empty or menu is not empty %}
+                    <nav class="mt-4 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm" aria-label="Site">
+                        {% for section in sections %}
+                            <a href="{{ path('category_show', { slug: section.slug }) }}"
+                               class="text-muted no-underline hover:text-ink hover:underline">{{ section.name }}</a>
+                        {% endfor %}
+
+                        {% if sections is not empty and menu is not empty %}
+                            <span class="text-rule" aria-hidden="true">|</span>
+                        {% endif %}
+
+                        {{ include('components/_menu.html.twig', { pages: menu }, with_context = false) }}
+                    </nav>
+                {% endif %}
             </div>
         </header>
 
-        <main class="mx-auto w-full max-w-3xl grow px-5 py-10">
+        <main id="main" class="mx-auto w-full max-w-3xl grow px-5 py-10">
+            {% block breadcrumbs %}{% endblock %}
             {% block main %}{% endblock %}
         </main>
 
-        <footer class="border-t border-rule">
-            <div class="mx-auto max-w-3xl px-5 py-6 text-sm text-muted">
-                {{ site_name }}
+        <footer class="mt-16 border-t border-rule">
+            <div class="mx-auto max-w-3xl px-5 py-10">
+                <div class="grid gap-8 sm:grid-cols-3">
+                    <div>
+                        <p class="font-semibold text-ink">{{ site_name }}</p>
+                        <p class="mt-1 text-sm text-muted">
+                            <a href="{{ path('feed') }}" class="text-muted no-underline hover:text-ink hover:underline">
+                                Subscribe by feed
+                            </a>
+                        </p>
+                    </div>
+
+                    {% if sections is not empty %}
+                        <div>
+                            <p class="text-sm font-semibold text-ink">Sections</p>
+                            <ul class="mt-2 space-y-1 text-sm">
+                                {% for section in sections %}
+                                    <li>
+                                        <a href="{{ path('category_show', { slug: section.slug }) }}"
+                                           class="text-muted no-underline hover:text-ink hover:underline">
+                                            {{ section.name }}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if menu is not empty %}
+                        <div>
+                            <p class="text-sm font-semibold text-ink">Pages</p>
+                            <ul class="mt-2 space-y-1 text-sm">
+                                {% for entry in menu %}
+                                    <li>
+                                        <a href="{{ path('page_show', { slug: entry.page.slug }) }}"
+                                           class="text-muted no-underline hover:text-ink hover:underline">
+                                            {{ entry.page.title }}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+
+                {#
+                   The sign-in link lives here rather than in the header: a
+                   reader has no use for it, and an editor knows where it is.
+                   Present at all because a site whose administration has no
+                   visible way in is a site people ask about.
+                #}
+                <p class="mt-8 border-t border-rule pt-6 text-xs text-muted">
+                    <a href="{{ path('login') }}" class="text-muted no-underline hover:text-ink hover:underline">
+                        Sign in
+                    </a>
+                </p>
             </div>
         </footer>
     </div>

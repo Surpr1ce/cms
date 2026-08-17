@@ -1,0 +1,36 @@
+{#
+   Where the reader is.
+
+   `trail` is a list of `{ label, path }`, ending with the current page — which
+   is rendered as text rather than a link, because a link to where you already
+   are is a link that does nothing.
+
+   Worth having on a site this shallow because the trail is the only thing that
+   names an article's section above the fold, and because somebody arriving from
+   a search engine lands three levels in with no idea what the site is.
+#}
+{% if trail is not empty %}
+    <nav class="mb-6 text-sm" aria-label="Breadcrumb">
+        <ol class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <li>
+                <a href="{{ path('home') }}" class="text-muted no-underline hover:text-ink hover:underline">
+                    {{ site_name }}
+                </a>
+            </li>
+
+            {% for crumb in trail %}
+                <li class="flex items-baseline gap-x-2">
+                    <span class="text-rule" aria-hidden="true">/</span>
+
+                    {% if crumb.path is defined and not loop.last %}
+                        <a href="{{ crumb.path }}" class="text-muted no-underline hover:text-ink hover:underline">
+                            {{ crumb.label }}
+                        </a>
+                    {% else %}
+                        <span class="text-ink" aria-current="page">{{ crumb.label }}</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    </nav>
+{% endif %}

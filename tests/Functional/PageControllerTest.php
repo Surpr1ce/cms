@@ -114,13 +114,26 @@ final class PageControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('nav[aria-label="Breadcrumb"] a[href="/about-us"]'));
     }
 
-    public function testATopLevelPageShowsNoBreadcrumb(): void
+    /**
+     * A top-level page had no trail at all until feature 017, on the grounds
+     * that there was nothing above it to name. Every other content page has one
+     * now, and being the odd one out is worse than the redundancy: the trail
+     * also links back to the front page, which is the thing somebody arriving
+     * from a search engine most needs.
+     *
+     * What it must not do is invent a level that is not there.
+     */
+    public function testATopLevelPageShowsOnlyItselfInTheTrail(): void
     {
-        PageFactory::new()->published()->create(['slug' => 'about-us']);
+        PageFactory::new()->published()->create(['slug' => 'about-us', 'title' => 'About us']);
 
         $crawler = $this->client->request('GET', '/about-us');
+        $trail = $crawler->filter('nav[aria-label="Breadcrumb"]');
 
-        self::assertCount(0, $crawler->filter('nav[aria-label="Breadcrumb"]'));
+        self::assertCount(1, $trail);
+        // The site, and the page itself. Nothing between them.
+        self::assertCount(2, $trail->filter('li'));
+        self::assertStringContainsString('About us', $trail->text());
     }
 
     public function testAParentPageLinksToItsPublishedChildren(): void

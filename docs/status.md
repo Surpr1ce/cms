@@ -8,8 +8,8 @@ as such at the top of the file.
 
 ## Where this stands
 
-Sixteen features, all on `master`, `composer qa` green after each and CI green
-since feature 011. **851 tests, 2575 assertions.**
+Seventeen features, all on `master`, `composer qa` green after each and CI
+green since feature 011. **864 tests, 2610 assertions.**
 
 A reader can find the site, read it, search it and subscribe to it. An editor can
 write, publish, upload, and get back in after forgetting their password. An
@@ -19,10 +19,11 @@ editors cannot silently overwrite each other, a draft is invisible through five
 different delivery mechanisms, and every response carries a content security
 policy that allows no inline script and no inline style.
 
-The last two features contained no planned work at all. Both came from opening
+The last three features contained no planned work at all. Each came from opening
 the running site and looking at it, and between them they found images that were
 one pixel, a test suite writing into the developer's uploads, forms whose fields
-were invisible, and two administration areas that looked like different products.
+were invisible, two administration areas that looked like different products, and
+a public site that showed no pictures and led a reader nowhere.
 **A test suite proves the rules hold; it does not prove somebody can use the
 thing.**
 
@@ -414,6 +415,33 @@ for styles was documented, justified and correct when it was written, and it
 stopped being needed the moment the thing that needed it was replaced — for
 reasons that had nothing to do with the policy.
 
+### Feature 017 — reader experience
+
+Branch `017-reader-experience`. "And the frontend for users — can't it be done
+better? I think a lot is missing there." It was, and none of it was a defect in
+the sense the earlier features used the word.
+
+| Area | State |
+| --- | --- |
+| Listings | Show the lead image at `thumbnail`, and how long each article takes to read. Every article has an image, the CMS stores three sizes of each, and no listing showed any of them |
+| Navigation | The sections are in the header and the footer. They were reachable only by noticing a small grey link beneath an article's title — the site's own structure was invisible from the site |
+| Trails | Every content page says where it sits and links back. A page's trail is built from its **published** ancestors, so it cannot name a draft parent |
+| The end of an article | Related articles — same section or shared labels, most shared first — and the published articles either side of it by date. Before this, an article ended and the reader had the back button |
+| The footer | The feed, the sections, the pages and the way in. It was the site's name |
+| Keyboard | A skip link past the header on every page |
+| Search | Says how many results it is showing |
+| Whole project | **864 tests, 2610 assertions, passing** |
+
+**Everything added here recommends content**, which is a new kind of surface on a
+site that spent sixteen features making unpublished work unreachable. Both new
+queries go through `publishedQuery()`, and the test that matters creates a draft
+and an archived article sharing a section *and* a label with the one being read,
+then asserts neither is named anywhere in the response.
+
+**Three features in a row now** have consisted entirely of things found by
+opening the running site. The suite has never been wrong; it has never been the
+whole story either.
+
 ## Not done
 
 | Area | State |
@@ -430,6 +458,8 @@ reasons that had nothing to do with the policy.
 | Concurrent editing of **sections, labels, accounts and files** | Still last-write-wins. Feature 009 covers articles and pages, where a conflict costs an afternoon; a section is a name and a parent, and a file record a description and alternative text. Recorded rather than pretended away |
 | Showing an editor *what* changed | Not started. A refused save says somebody else changed the content; it does not show their version beside yours |
 | A rich-text editor | Not started, deliberately. The body is a text area containing markup, so sanitising does not depend on an editor behaving |
+| Author pages | Not started. An article credits its author by name and that name links nowhere — a real gap. Giving accounts public addresses is a decision with its own privacy question rather than a detail of feature 017 |
+| Dark mode, share buttons, comments | Not started. Each is a feature with its own decisions |
 | ~~Inline **styles** are still allowed~~ | **Closed by feature 016.** `style-src` is `'self'` alone. The concession existed only for the generic administration screens, which no longer exist |
 | A policy reporting endpoint | Not started. A `report-to` pointing nowhere is a comment, so the policy is enforced instead |
 | Rate limiting on anything but sign-in | Not started. The public site and the read-only API are unthrottled |

@@ -82,7 +82,11 @@ final class ArticleControllerTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/articles/a-published-article');
 
-        self::assertCount(1, $crawler->filter('a[href="/sections/news"]'));
+        // At least one, not exactly one. Since feature 017 the section is named
+        // in three places — the trail, the line under the title, and the site
+        // navigation — and counting them would be a test about the layout
+        // rather than about the link.
+        self::assertGreaterThan(0, $crawler->filter('main a[href="/sections/news"]')->count());
     }
 
     public function testItLinksToEachOfItsLabels(): void

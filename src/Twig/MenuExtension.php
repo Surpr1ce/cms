@@ -27,6 +27,11 @@ final class MenuExtension extends AbstractExtension
     {
         return [
             new TwigFunction('public_menu', [MenuRuntime::class, 'menu']),
+            // Sections, for the same reason and by the same mechanism. Before
+            // feature 017 a reader could only reach a section by noticing the
+            // small link under an article's title — the site's own structure was
+            // invisible from the site.
+            new TwigFunction('public_sections', [MenuRuntime::class, 'sections']),
         ];
     }
 }

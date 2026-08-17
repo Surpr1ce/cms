@@ -11,25 +11,30 @@
 
 {% block preview_type %}article{% endblock %}
 
+{% block breadcrumbs %}
+    {#
+       Built from `ancestors`, not from `page_content.parent`.
+
+       The controller supplies only ancestors that are themselves published, so
+       the trail cannot name a draft parent — which a chain of `.parent` reads
+       would do, and which is the disclosure feature 002 exists to prevent. The
+       shared component only draws what it is given.
+    #}
+    {% set trail = [] %}
+    {% for ancestor in ancestors %}
+        {% set trail = trail|merge([{
+            label: ancestor.title,
+            path: path('page_show', { slug: ancestor.slug }),
+        }]) %}
+    {% endfor %}
+    {% set trail = trail|merge([{ label: page_content.title }]) %}
+
+    {{ include('components/_breadcrumbs.html.twig', { trail: trail }, with_context = false) }}
+{% endblock %}
+
 {% block main %}
     <article>
-        {#
-           Where in the structure the reader is — US4 scenario 5. Only ancestors
-           that are themselves published appear, so the trail cannot disclose a
-           draft parent's title.
-        #}
-        {% if ancestors is not empty %}
-            <nav class="text-sm text-muted" aria-label="Breadcrumb">
-                {% for ancestor in ancestors %}
-                    <a href="{{ path('page_show', { slug: ancestor.slug }) }}"
-                       class="text-muted no-underline hover:text-ink hover:underline">{{ ancestor.title }}</a>
-                    <span aria-hidden="true">/</span>
-                {% endfor %}
-                <span>{{ page_content.title }}</span>
-            </nav>
-        {% endif %}
-
-        <h1 class="mt-2 text-3xl font-semibold tracking-tight">{{ page_content.title }}</h1>
+        <h1 class="text-3xl font-semibold tracking-tight">{{ page_content.title }}</h1>
 
         {% if page_content.featuredImage %}
             <img src="{{ path('media_sized', { size: 'large', filename: page_content.featuredImage.filename }) }}"
