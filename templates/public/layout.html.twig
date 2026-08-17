@@ -28,17 +28,21 @@
                     {#
                        `w-full` only until there is room for it. In a wrapping
                        flex row `w-full` is a basis of 100%, so an unconditional
-                       one puts the search on a line of its own at every width —
-                       it was doing exactly that, stranded under the site name
-                       with two thirds of the row empty beside it.
+                       one puts the search on a line of its own at every width.
+
+                       Overridable, and the search screen overrides it away: that
+                       page carries its own search box, and two of them on one
+                       screen is a question about which one to type into.
                     #}
-                    <div class="w-full sm:w-72">
-                        {{ include(
-                            'components/_search_form.html.twig',
-                            { query: app.request.query.get('q'), autofocus: false },
-                            with_context = false
-                        ) }}
-                    </div>
+                    {% block header_search %}
+                        <div class="w-full sm:w-72">
+                            {{ include(
+                                'components/_search_form.html.twig',
+                                { query: app.request.query.get('q'), autofocus: false },
+                                with_context = false
+                            ) }}
+                        </div>
+                    {% endblock %}
                 </div>
 
                 {#

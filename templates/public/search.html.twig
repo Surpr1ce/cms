@@ -13,6 +13,12 @@
     {{ parent() }}
 {% endblock %}
 
+{#
+   The one screen that does not carry the header's search box. It has its own,
+   larger and focused, and two search boxes on one page is a question about which
+   one to type into rather than a convenience.
+#}
+{% block header_search %}{% endblock %}
 {% block breadcrumbs %}
     {{ include('components/_breadcrumbs.html.twig', { trail: [{ label: 'Search' }] }, with_context = false) }}
 {% endblock %}

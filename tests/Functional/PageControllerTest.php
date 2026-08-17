@@ -172,7 +172,10 @@ final class PageControllerTest extends WebTestCase
         PageFactory::new()->published()->childOf($parent)->create(['slug' => 'our-team', 'title' => 'Our team']);
 
         $crawler = $this->client->request('GET', '/');
-        $groups = $crawler->filter('nav[aria-label="Site"] > div');
+        // Found by a marker rather than by element name. The first version of
+        // this looked for a div, which broke the day the menu was rewritten
+        // to read better — a test about the markup rather than about the rule.
+        $groups = $crawler->filter('nav[aria-label="Site"] [data-menu-group]');
 
         self::assertCount(1, $groups, 'A child must not appear alongside its parent.');
         self::assertStringContainsString('About us', $groups->text());

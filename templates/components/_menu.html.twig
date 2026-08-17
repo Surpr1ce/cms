@@ -5,28 +5,37 @@
    Rendered from `public_menu()` rather than passed down from every controller,
    because a menu missing from one page because a controller forgot it is a
    defect nobody notices until a reader is stuck.
+
+   Children are shown in brackets beside their parent. They used to follow it
+   after a slash with nothing between them, which on a real menu read as
+   "About us / Our team History Contact Privacy" — four links and one separator,
+   with no way to tell which belonged to which. Brackets say what a slash only
+   implied.
 #}
 {% if pages is not empty %}
-    <nav class="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm" aria-label="Site">
-        {% for entry in pages %}
-            <div class="flex items-baseline gap-x-2">
-                <a href="{{ path('page_show', { slug: entry.page.slug }) }}"
-                   class="text-muted no-underline hover:text-ink hover:underline">
-                    {{ entry.page.title }}
-                </a>
+    {% for entry in pages %}
+        <span class="inline-flex flex-wrap items-baseline gap-x-1.5" data-menu-group>
+            <a href="{{ path('page_show', { slug: entry.page.slug }) }}"
+               class="text-muted no-underline hover:text-ink hover:underline">
+                {{ entry.page.title }}
+            </a>
 
-                {% if entry.children is not empty %}
-                    <span class="text-rule" aria-hidden="true">/</span>
-                    <span class="flex flex-wrap gap-x-2">
-                        {% for child in entry.children %}
-                            <a href="{{ path('page_show', { slug: child.slug }) }}"
-                               class="text-muted no-underline hover:text-ink hover:underline">
-                                {{ child.title }}
-                            </a>
-                        {% endfor %}
-                    </span>
-                {% endif %}
-            </div>
-        {% endfor %}
-    </nav>
+            {% if entry.children is not empty %}
+                <span class="text-rule" aria-hidden="true">(</span>
+
+                {% for child in entry.children %}
+                    <a href="{{ path('page_show', { slug: child.slug }) }}"
+                       class="text-muted/80 no-underline hover:text-ink hover:underline">
+                        {{ child.title }}
+                    </a>
+
+                    {% if not loop.last %}
+                        <span class="text-rule" aria-hidden="true">·</span>
+                    {% endif %}
+                {% endfor %}
+
+                <span class="text-rule" aria-hidden="true">)</span>
+            {% endif %}
+        </span>
+    {% endfor %}
 {% endif %}
