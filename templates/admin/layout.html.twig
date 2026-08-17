@@ -1,0 +1,57 @@
+{% extends 'base.html.twig' %}
+
+{#
+   The administration chrome. Separate from the public layout, because the two
+   audiences are different: a reader gets a menu of pages, somebody signed in
+   gets a menu of what they may work on.
+
+   Navigation is filtered by permission, not by role name. The link to Pages is
+   absent for an author because PageVoter says so — the same voter the
+   controller asks — rather than because a template checked for ROLE_EDITOR and
+   might disagree with it.
+#}
+
+{% block title %}Administration — {{ site_name }}{% endblock %}
+
+{% block body %}
+    <div class="flex min-h-full flex-col">
+        <header class="border-b border-rule bg-ink text-white">
+            <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-4">
+                <a href="{{ path('admin_dashboard') }}" class="font-semibold text-white no-underline">
+                    {{ site_name }}
+                </a>
+
+                <nav class="flex flex-wrap gap-x-5 text-sm" aria-label="Administration">
+                    <a href="{{ path('admin_article_index') }}" class="text-white/80 no-underline hover:text-white">Articles</a>
+                    {% if is_granted('PAGE_EDIT', page_probe()) %}
+                        <a href="{{ path('admin_page_index') }}" class="text-white/80 no-underline hover:text-white">Pages</a>
+                    {% endif %}
+                    <a href="{{ path('home') }}" class="text-white/80 no-underline hover:text-white">View site</a>
+                </nav>
+
+                <div class="ml-auto flex items-center gap-4 text-sm">
+                    <span class="text-white/70">{{ app.user.displayName }}</span>
+                    <form method="post" action="{{ path('logout') }}">
+                        <button type="submit" class="text-white/80 hover:text-white">Sign out</button>
+                    </form>
+                </div>
+            </div>
+        </header>
+
+        <main class="mx-auto w-full max-w-5xl grow px-5 py-8">
+            {% for label, messages in app.flashes(['success', 'error']) %}
+                {% for message in messages %}
+                    <p class="mb-4 rounded border px-4 py-3 text-sm
+                              {{ label == 'error'
+                                 ? 'border-red-300 bg-red-50 text-red-800'
+                                 : 'border-green-300 bg-green-50 text-green-800' }}"
+                       role="{{ label == 'error' ? 'alert' : 'status' }}">
+                        {{ message }}
+                    </p>
+                {% endfor %}
+            {% endfor %}
+
+            {% block main %}{% endblock %}
+        </main>
+    </div>
+{% endblock %}

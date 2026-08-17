@@ -1,0 +1,95 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block main %}
+    <div class="flex flex-wrap items-baseline justify-between gap-4">
+        <h1 class="text-2xl font-semibold tracking-tight">
+            {{ page ? 'Edit page' : 'New page' }}
+        </h1>
+
+        {% if page %}
+            <span class="rounded-full border border-rule px-3 py-1 text-xs text-muted">
+                {{ page.status.label }}
+            </span>
+        {% endif %}
+    </div>
+
+    {{ form_start(form) }}
+        <div class="mt-8 grid gap-8 lg:grid-cols-[2fr_1fr]">
+            <div class="space-y-5">
+                {{ form_row(form.title) }}
+                {{ form_row(form.excerpt) }}
+                {{ form_row(form.content) }}
+
+                <button type="submit" class="rounded bg-ink px-4 py-2 text-white hover:bg-accent">
+                    {{ page ? 'Save' : 'Create' }}
+                </button>
+            </div>
+
+            <aside>
+                <div class="rounded border border-rule p-4">
+                    <h2 class="text-sm font-semibold">Placement</h2>
+                    <div class="mt-3 space-y-4 text-sm">
+                        {{ form_row(form.parent) }}
+                        {{ form_row(form.menuOrder) }}
+                        {{ form_row(form.featuredImage) }}
+                    </div>
+                </div>
+            </aside>
+        </div>
+    {{ form_end(form) }}
+
+    {% if page %}
+        <div class="mt-8 grid gap-4 sm:grid-cols-2">
+            {% if is_granted('PAGE_PUBLISH', page) %}
+                <div class="rounded border border-rule p-4">
+                    <h2 class="text-sm font-semibold">Publication</h2>
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        {% for transition in page.status.allowedTransitions %}
+                            {% set act = {
+                                'published': 'publish',
+                                'draft': page.status.value == 'archived' ? 'restore' : 'unpublish',
+                                'archived': 'archive',
+                            }[transition.value] %}
+
+                            <form method="post"
+                                  action="{{ path('admin_page_transition', { id: page.id, transition: act }) }}">
+                                <input type="hidden" name="_token"
+                                       value="{{ csrf_token('page-transition-' ~ page.id) }}">
+                                <button type="submit"
+                                        class="rounded border border-rule px-3 py-1.5 text-sm hover:border-accent hover:text-accent">
+                                    {{ act|capitalize }}
+                                </button>
+                            </form>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if is_granted('PAGE_DELETE', page) %}
+                <div class="rounded border border-red-200 p-4">
+                    <h2 class="text-sm font-semibold text-red-800">Delete</h2>
+                    {% if page.hasChildren %}
+                        <p class="mt-1 text-xs text-muted">
+                            This page has pages beneath it. Move them first — deleting it would
+                            rearrange the site menu without anybody deciding to.
+                        </p>
+                    {% endif %}
+
+                    <form method="post"
+                          action="{{ path('admin_page_delete', { id: page.id }) }}"
+                          class="mt-3"
+                          onsubmit="return confirm('Delete this page? It cannot be undone.')">
+                        <input type="hidden" name="_token" value="{{ csrf_token('page-delete-' ~ page.id) }}">
+                        <button type="submit"
+                                class="rounded border border-red-300 px-3 py-1.5 text-sm text-red-800 hover:bg-red-50">
+                            Delete this page
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+
+        <p class="mt-6 text-xs text-muted">Address: <code>/{{ page.slug }}</code></p>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block main %}
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <h1 class="text-2xl font-semibold tracking-tight">Pages</h1>
+
+        <a href="{{ path('admin_page_new') }}"
+           class="rounded bg-ink px-4 py-2 text-sm text-white no-underline hover:bg-accent">
+            New page
+        </a>
+    </div>
+
+    {% if pages is empty %}
+        <p class="mt-8 text-muted">Nothing here yet.</p>
+    {% else %}
+        <div class="mt-6 overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+                <thead>
+                    <tr class="border-b border-rule text-left">
+                        <th class="py-2 pr-4 font-semibold">Title</th>
+                        <th class="py-2 pr-4 font-semibold">Status</th>
+                        <th class="py-2 pr-4 font-semibold">Parent</th>
+                        <th class="py-2 pr-4 font-semibold">Position</th>
+                        <th class="py-2 font-semibold"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for page in pages %}
+                        <tr class="border-b border-rule/60">
+                            <td class="py-2 pr-4">
+                                <a href="{{ path('admin_page_edit', { id: page.id }) }}"
+                                   class="font-medium text-ink no-underline hover:underline">{{ page.title }}</a>
+                            </td>
+                            <td class="py-2 pr-4">
+                                <span class="rounded-full border border-rule px-2 py-0.5 text-xs text-muted">
+                                    {{ page.status.label }}
+                                </span>
+                            </td>
+                            <td class="py-2 pr-4 text-muted">{{ page.parent ? page.parent.title : '—' }}</td>
+                            <td class="py-2 pr-4 text-muted">{{ page.menuOrder }}</td>
+                            <td class="py-2 text-right">
+                                {% if page.published %}
+                                    <a href="{{ path('page_show', { slug: page.slug }) }}"
+                                       class="text-xs text-accent no-underline hover:underline">View</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

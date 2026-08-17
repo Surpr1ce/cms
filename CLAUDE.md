@@ -30,6 +30,8 @@ src/
   Exception/       Domain exceptions — one class per refused rule
   Factory/         Foundry factories — one per entity, used by fixtures and tests
   Command/         Console commands — operator tasks with no HTTP surface
+  Form/            Form types, and the command objects they fill
+    Command/       Plain data carrying what a form collected — never an entity
   Controller/      HTTP boundary — thin, delegates to services
     Admin/         Hand-written admin screens
   Security/        Voters, authenticators
