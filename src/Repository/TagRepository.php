@@ -93,14 +93,6 @@ final class TagRepository extends ServiceEntityRepository implements SluggedRepo
     }
 
     /**
-     * @return list<Tag>
-     */
-    public function findAllOrdered(): array
-    {
-        return array_values($this->findBy([], ['name' => 'ASC']));
-    }
-
-    /**
      * One page of labels for the administration screen.
      *
      * Ordered by name and then by identifier: without the tiebreak, two labels
